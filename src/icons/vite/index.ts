@@ -49,6 +49,10 @@ const DEFAULT_IGNORED_DIRECTORIES = new Set([
 
 /**
  * Источник, из которого разрешаются имена иконок.
+ *
+ * @remarks
+ * Поддерживается два варианта: локальный каталог компонентов (`local`)
+ * и fallback-шаблон импорта из npm-пакета (`package`).
  */
 export type TDubiumIconSource =
 	| {
@@ -223,15 +227,7 @@ const setsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string>): boole
 }
 
 /**
- * Экранирует спецсимволы регулярного выражения.
- *
- * @param value - Строка для экранирования
- * @returns Строка, безопасная для использования в `RegExp`
- */
-const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
-
-/**
- * Проверяет, может ли символ быть частью имени JSX-компонента.
+ * Проверяет, может ли символ быть частью JS/JSX-идентификатора.
  *
  * @param character - Проверяемый символ
  * @returns `true`, если символ допустим внутри идентификатора
@@ -287,10 +283,6 @@ const isComponentTagStart = (source: string, index: number, componentNames: read
  * ```
  *
  * не считается реальным использованием иконки.
- *
- * Сам JSX-тег не изменяется и далее разбирается по исходному тексту,
- * поэтому реальные строковые атрибуты вроде `name="User"` продолжают
- * корректно распознаваться.
  *
  * @param source - Исходный текст файла
  * @param componentNames - Имена отслеживаемых компонентов
@@ -502,27 +494,363 @@ const parseStaticName = (openingTag: string): string | null => {
 const hasNameAttribute = (openingTag: string): boolean => /\bname\s*=/u.test(openingTag)
 
 /**
- * Ищет строковые значения указанных свойств в исходнике.
+ * Пропускает пробельные символы и комментарии.
+ *
+ * @param source - Исходный текст
+ * @param startIndex - Начальная позиция
+ * @returns Позиция первого значимого символа
+ */
+const skipWhitespaceAndComments = (source: string, startIndex: number): number => {
+	let index = startIndex
+
+	while (index < source.length) {
+		const character = source[index]
+		const nextCharacter = source[index + 1]
+
+		if (/\s/u.test(character)) {
+			index += 1
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "/") {
+			index += 2
+
+			while (index < source.length && source[index] !== "\n" && source[index] !== "\r") {
+				index += 1
+			}
+
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "*") {
+			index += 2
+
+			while (index < source.length) {
+				if (source[index] === "*" && source[index + 1] === "/") {
+					index += 2
+					break
+				}
+
+				index += 1
+			}
+
+			continue
+		}
+
+		break
+	}
+
+	return index
+}
+
+/**
+ * Читает статическое строковое значение.
+ *
+ * @remarks
+ * Поддерживает одинарные и двойные кавычки.
+ * Строки с интерполяцией здесь не используются, поскольку propertyNames
+ * предназначен для статических имён иконок.
+ *
+ * @param source - Исходный текст
+ * @param startIndex - Позиция открывающей кавычки
+ * @returns Значение строки и позиция после неё либо `null`
+ */
+const readQuotedString = (source: string, startIndex: number): { endIndex: number; value: string } | null => {
+	const quote = source[startIndex]
+
+	if (quote !== "'" && quote !== '"') {
+		return null
+	}
+
+	let value = ""
+	let escaped = false
+
+	for (let index = startIndex + 1; index < source.length; index += 1) {
+		const character = source[index]
+
+		if (escaped) {
+			value += character
+			escaped = false
+			continue
+		}
+
+		if (character === "\\") {
+			escaped = true
+			continue
+		}
+
+		if (character === quote) {
+			return {
+				endIndex: index + 1,
+				value: value.trim(),
+			}
+		}
+
+		if (character === "\n" || character === "\r") {
+			return null
+		}
+
+		value += character
+	}
+
+	return null
+}
+
+/**
+ * Проверяет, начинается ли в позиции обычное имя свойства.
+ *
+ * @param source - Исходный текст
+ * @param index - Начальная позиция
+ * @param propertyName - Имя свойства
+ * @returns Позиция после имени свойства либо `null`
+ */
+const matchIdentifierPropertyName = (source: string, index: number, propertyName: string): number | null => {
+	if (!source.startsWith(propertyName, index)) {
+		return null
+	}
+
+	const previousCharacter = source[index - 1]
+	const nextCharacter = source[index + propertyName.length]
+
+	if (isIdentifierCharacter(previousCharacter) || isIdentifierCharacter(nextCharacter)) {
+		return null
+	}
+
+	return index + propertyName.length
+}
+
+/**
+ * Проверяет, начинается ли в позиции строковое имя свойства.
+ *
+ * @example
+ * `"iconName": "User"`
+ *
+ * @param source - Исходный текст
+ * @param index - Позиция открывающей кавычки
+ * @param propertyName - Имя свойства
+ * @returns Позиция после строкового ключа либо `null`
+ */
+const matchQuotedPropertyName = (source: string, index: number, propertyName: string): number | null => {
+	const parsed = readQuotedString(source, index)
+
+	if (!parsed || parsed.value !== propertyName) {
+		return null
+	}
+
+	return parsed.endIndex
+}
+
+/**
+ * Пытается прочитать статическое значение настроенного свойства.
+ *
+ * @remarks
+ * Поддерживает:
+ *
+ * ```ts
+ * iconName: "User"
+ * "iconName": "User"
+ * 'iconName': 'User'
+ * ```
+ *
+ * Комментарии между ключом, `:` и значением допускаются.
+ *
+ * @param source - Исходный текст
+ * @param index - Позиция начала свойства
+ * @param propertyNames - Настроенные имена свойств
+ * @returns Найденное имя иконки и позиция после значения либо `null`
+ */
+const parsePropertyAt = (
+	source: string,
+	index: number,
+	propertyNames: readonly string[],
+): { endIndex: number; value: string } | null => {
+	for (const propertyName of propertyNames) {
+		let afterPropertyName: number | null = null
+
+		if (source[index] === "'" || source[index] === '"') {
+			afterPropertyName = matchQuotedPropertyName(source, index, propertyName)
+		} else {
+			afterPropertyName = matchIdentifierPropertyName(source, index, propertyName)
+		}
+
+		if (afterPropertyName === null) {
+			continue
+		}
+
+		let cursor = skipWhitespaceAndComments(source, afterPropertyName)
+
+		if (source[cursor] !== ":") {
+			continue
+		}
+
+		cursor = skipWhitespaceAndComments(source, cursor + 1)
+
+		const parsedValue = readQuotedString(source, cursor)
+
+		if (!parsedValue) {
+			continue
+		}
+
+		if (!parsedValue.value) {
+			continue
+		}
+
+		return {
+			endIndex: parsedValue.endIndex,
+			value: parsedValue.value,
+		}
+	}
+
+	return null
+}
+
+/**
+ * Ищет статические строковые значения указанных свойств.
+ *
+ * @remarks
+ * Scanner работает только по реальному коду и игнорирует:
+ *
+ * - `//` комментарии;
+ * - `/* ... *\/` комментарии;
+ * - обычные строки;
+ * - template literals.
+ *
+ * Поэтому текст вроде:
+ *
+ * ```ts
+ * // iconName: "Fake"
+ * const example = 'iconName: "Fake"'
+ * ```
+ *
+ * не добавляет `Fake` в registry.
  *
  * @param source - Исходный текст файла
  * @param propertyNames - Имена свойств, значения которых считаются иконками
  * @param icons - Набор, в который добавляются найденные имена
  */
 const scanPropertyNames = (source: string, propertyNames: readonly string[], icons: Set<string>): void => {
-	for (const propertyName of propertyNames) {
-		const escapedName = escapeRegExp(propertyName)
+	if (propertyNames.length === 0) {
+		return
+	}
 
-		const pattern = new RegExp(
-			`(?:\\b${escapedName}\\b|["']${escapedName}["'])\\s*:\\s*(["'])([^"'\\n\\r]+)\\1`,
-			"gu",
-		)
+	let state: TSourceState = "code"
+	let escaped = false
 
-		for (const match of source.matchAll(pattern)) {
-			const name = match[2]?.trim()
+	for (let index = 0; index < source.length; index += 1) {
+		const character = source[index]
+		const nextCharacter = source[index + 1]
 
-			if (name) {
-				icons.add(name)
+		if (state === "line-comment") {
+			if (character === "\n" || character === "\r") {
+				state = "code"
 			}
+
+			continue
+		}
+
+		if (state === "block-comment") {
+			if (character === "*" && nextCharacter === "/") {
+				state = "code"
+				index += 1
+			}
+
+			continue
+		}
+
+		if (state === "single-quote") {
+			if (escaped) {
+				escaped = false
+				continue
+			}
+
+			if (character === "\\") {
+				escaped = true
+				continue
+			}
+
+			if (character === "'") {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (state === "double-quote") {
+			if (escaped) {
+				escaped = false
+				continue
+			}
+
+			if (character === "\\") {
+				escaped = true
+				continue
+			}
+
+			if (character === '"') {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (state === "template") {
+			if (escaped) {
+				escaped = false
+				continue
+			}
+
+			if (character === "\\") {
+				escaped = true
+				continue
+			}
+
+			if (character === "`") {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "/") {
+			state = "line-comment"
+			index += 1
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "*") {
+			state = "block-comment"
+			index += 1
+			continue
+		}
+
+		/*
+		 * Важно: сначала проверяем quoted property.
+		 * Иначе `"iconName": "User"` был бы ошибочно принят
+		 * за обычную строку и пропущен.
+		 */
+		if (character === "'" || character === '"') {
+			const property = parsePropertyAt(source, index, propertyNames)
+
+			if (property) {
+				icons.add(property.value)
+				index = property.endIndex - 1
+				continue
+			}
+
+			state = character === "'" ? "single-quote" : "double-quote"
+			continue
+		}
+
+		if (character === "`") {
+			state = "template"
+			continue
+		}
+
+		const property = parsePropertyAt(source, index, propertyNames)
+
+		if (property) {
+			icons.add(property.value)
+			index = property.endIndex - 1
 		}
 	}
 }
@@ -531,7 +859,8 @@ const scanPropertyNames = (source: string, propertyNames: readonly string[], ico
  * Сканирует исходник и собирает статические имена иконок.
  *
  * @remarks
- * JSX-теги внутри комментариев и JavaScript-строк игнорируются.
+ * JSX-теги и propertyNames внутри комментариев и JavaScript-строк
+ * игнорируются.
  *
  * @param source - Исходный текст файла
  * @param componentNames - Имена компонентов-иконок
@@ -766,8 +1095,8 @@ ${entries.join("\n")}
  * Благодаря этому Rollup/Vite видит `import()` только реально используемых
  * иконок, поэтому остальные не попадают в итоговую сборку приложения.
  *
- * JSX-теги внутри комментариев и JavaScript-строк при сканировании
- * компонентов игнорируются.
+ * JSX-теги и propertyNames внутри комментариев и JavaScript-строк
+ * при сканировании игнорируются.
  *
  * @param options - Настройки плагина
  * @returns Объект Vite-плагина
