@@ -60,10 +60,16 @@ export type TDubiumIconSource =
 			 */
 			type: "local"
 
-			/** Путь относительно Vite root. */
+			/**
+			 * Путь к директории с компонентами относительно Vite root.
+			 */
 			path: string
 
-			/** @default "Icon" */
+			/**
+			 * Суффикс имени файла, по которому распознаются компоненты иконок.
+			 *
+			 * @default "Icon"
+			 */
 			suffix?: string
 	  }
 	| {
@@ -89,7 +95,11 @@ export type TDubiumIconSource =
  * Настройки Vite-плагина {@link dubiumIcons}.
  */
 export interface DubiumIconsPluginOptions {
-	/** @default ["Icon"] */
+	/**
+	 * Имена JSX-компонентов, которые считаются иконками.
+	 *
+	 * @default ["Icon"]
+	 */
 	componentNames?: readonly string[]
 
 	/**
@@ -104,7 +114,11 @@ export interface DubiumIconsPluginOptions {
 	 */
 	propertyNames?: readonly string[]
 
-	/** @default ["src"] */
+	/**
+	 * Директории, которые плагин сканирует на предмет использования иконок.
+	 *
+	 * @default ["src"]
+	 */
 	scan?: readonly string[]
 
 	/**
@@ -144,6 +158,7 @@ export interface DubiumIconsPluginOptions {
 interface ScanResult {
 	/** Количество найденных динамических имён иконок. */
 	dynamicNames: number
+
 	/** Множество статических имён иконок, найденных в файле. */
 	icons: Set<string>
 }
@@ -157,6 +172,13 @@ interface ILocalSourceCatalog {
 	/** Соответствие имени иконки пути к её компоненту. */
 	icons: Map<string, string>
 }
+
+/**
+ * Состояние лексического обхода исходного файла.
+ *
+ * @internal
+ */
+type TSourceState = "code" | "single-quote" | "double-quote" | "template" | "line-comment" | "block-comment"
 
 /**
  * Приводит пути к Unix-разделителю `/`.
@@ -209,15 +231,185 @@ const setsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string>): boole
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 
 /**
- * Создаёт регулярное выражение для поиска открывающих тегов компонентов.
+ * Проверяет, может ли символ быть частью имени JSX-компонента.
  *
- * @param componentNames - Имена компонентов, например `Icon`
- * @returns Регулярное выражение для поиска тегов
+ * @param character - Проверяемый символ
+ * @returns `true`, если символ допустим внутри идентификатора
  */
-const createComponentPattern = (componentNames: readonly string[]): RegExp => {
-	const escapedNames = componentNames.map(escapeRegExp)
+const isIdentifierCharacter = (character: string | undefined): boolean =>
+	character !== undefined && /[A-Za-z0-9_$]/u.test(character)
 
-	return new RegExp(`<\\s*(?:${escapedNames.join("|")})\\b`, "gu")
+/**
+ * Проверяет, начинается ли в указанной позиции JSX-тег одного
+ * из настроенных компонентов.
+ *
+ * @param source - Исходный текст файла
+ * @param index - Позиция символа `<`
+ * @param componentNames - Имена отслеживаемых компонентов
+ * @returns `true`, если найден подходящий JSX-тег
+ */
+const isComponentTagStart = (source: string, index: number, componentNames: readonly string[]): boolean => {
+	if (source[index] !== "<") {
+		return false
+	}
+
+	let nameStart = index + 1
+
+	while (/\s/u.test(source[nameStart] ?? "")) {
+		nameStart += 1
+	}
+
+	for (const componentName of componentNames) {
+		if (!source.startsWith(componentName, nameStart)) {
+			continue
+		}
+
+		const nextCharacter = source[nameStart + componentName.length]
+
+		if (!isIdentifierCharacter(nextCharacter)) {
+			return true
+		}
+	}
+
+	return false
+}
+
+/**
+ * Находит позиции JSX-тегов нужных компонентов, игнорируя комментарии
+ * и JavaScript-строки.
+ *
+ * @remarks
+ * Благодаря этому текст вроде:
+ *
+ * ```ts
+ * // <Icon name="User" />
+ * const example = '<Icon name="User" />'
+ * ```
+ *
+ * не считается реальным использованием иконки.
+ *
+ * Сам JSX-тег не изменяется и далее разбирается по исходному тексту,
+ * поэтому реальные строковые атрибуты вроде `name="User"` продолжают
+ * корректно распознаваться.
+ *
+ * @param source - Исходный текст файла
+ * @param componentNames - Имена отслеживаемых компонентов
+ * @returns Позиции начала найденных JSX-тегов
+ */
+const findComponentTagStarts = (source: string, componentNames: readonly string[]): number[] => {
+	const positions: number[] = []
+
+	let state: TSourceState = "code"
+	let escaped = false
+
+	for (let index = 0; index < source.length; index += 1) {
+		const character = source[index]
+		const nextCharacter = source[index + 1]
+
+		if (state === "line-comment") {
+			if (character === "\n" || character === "\r") {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (state === "block-comment") {
+			if (character === "*" && nextCharacter === "/") {
+				state = "code"
+				index += 1
+			}
+
+			continue
+		}
+
+		if (state === "single-quote") {
+			if (escaped) {
+				escaped = false
+				continue
+			}
+
+			if (character === "\\") {
+				escaped = true
+				continue
+			}
+
+			if (character === "'") {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (state === "double-quote") {
+			if (escaped) {
+				escaped = false
+				continue
+			}
+
+			if (character === "\\") {
+				escaped = true
+				continue
+			}
+
+			if (character === '"') {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (state === "template") {
+			if (escaped) {
+				escaped = false
+				continue
+			}
+
+			if (character === "\\") {
+				escaped = true
+				continue
+			}
+
+			if (character === "`") {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "/") {
+			state = "line-comment"
+			index += 1
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "*") {
+			state = "block-comment"
+			index += 1
+			continue
+		}
+
+		if (character === "'") {
+			state = "single-quote"
+			continue
+		}
+
+		if (character === '"') {
+			state = "double-quote"
+			continue
+		}
+
+		if (character === "`") {
+			state = "template"
+			continue
+		}
+
+		if (character === "<" && isComponentTagStart(source, index, componentNames)) {
+			positions.push(index)
+		}
+	}
+
+	return positions
 }
 
 /**
@@ -338,6 +530,9 @@ const scanPropertyNames = (source: string, propertyNames: readonly string[], ico
 /**
  * Сканирует исходник и собирает статические имена иконок.
  *
+ * @remarks
+ * JSX-теги внутри комментариев и JavaScript-строк игнорируются.
+ *
  * @param source - Исходный текст файла
  * @param componentNames - Имена компонентов-иконок
  * @param propertyNames - Имена свойств со строковыми ссылками на иконки
@@ -349,12 +544,11 @@ const scanSource = (
 	propertyNames: readonly string[],
 ): ScanResult => {
 	const icons = new Set<string>()
-	const componentPattern = createComponentPattern(componentNames)
+	const tagStarts = findComponentTagStarts(source, componentNames)
 
 	let dynamicNames = 0
 
-	for (const match of source.matchAll(componentPattern)) {
-		const tagStart = match.index ?? 0
+	for (const tagStart of tagStarts) {
 		const tagEnd = findTagEnd(source, tagStart)
 
 		if (tagEnd === -1) {
@@ -572,6 +766,9 @@ ${entries.join("\n")}
  * Благодаря этому Rollup/Vite видит `import()` только реально используемых
  * иконок, поэтому остальные не попадают в итоговую сборку приложения.
  *
+ * JSX-теги внутри комментариев и JavaScript-строк при сканировании
+ * компонентов игнорируются.
+ *
  * @param options - Настройки плагина
  * @returns Объект Vite-плагина
  *
@@ -649,7 +846,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 		if (!DEFAULT_EXTENSIONS.has(extname(file).toLowerCase())) {
 			const hadIcons = fileIcons.delete(normalizedFile)
-
 			const hadDynamicNames = dynamicFiles.delete(normalizedFile)
 
 			return hadIcons || hadDynamicNames
@@ -661,14 +857,12 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			source = await readFile(file, "utf8")
 		} catch {
 			const hadIcons = fileIcons.delete(normalizedFile)
-
 			const hadDynamicNames = dynamicFiles.delete(normalizedFile)
 
 			return hadIcons || hadDynamicNames
 		}
 
 		const previousIcons = fileIcons.get(normalizedFile) ?? new Set<string>()
-
 		const previousDynamicNames = dynamicFiles.get(normalizedFile) ?? 0
 
 		const result = scanSource(source, componentNames, propertyNames)
@@ -695,7 +889,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 		for (const directory of scanDirectories) {
 			const absoluteDirectory = resolve(root, directory)
-
 			const files = await getSourceFiles(absoluteDirectory)
 
 			for (const file of files) {
@@ -811,7 +1004,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			 */
 			const onStructureChange = async (file: string): Promise<void> => {
 				const localSourceChanged = isLocalSourcePath(file)
-
 				const scanChanged = await scanFile(file)
 
 				if (localSourceChanged) {
@@ -826,20 +1018,14 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			}
 
 			devServer.watcher.on("add", onStructureChange)
-
 			devServer.watcher.on("unlink", onStructureChange)
-
 			devServer.watcher.on("addDir", onStructureChange)
-
 			devServer.watcher.on("unlinkDir", onStructureChange)
 
 			devServer.httpServer?.once("close", () => {
 				devServer.watcher.off("add", onStructureChange)
-
 				devServer.watcher.off("unlink", onStructureChange)
-
 				devServer.watcher.off("addDir", onStructureChange)
-
 				devServer.watcher.off("unlinkDir", onStructureChange)
 			})
 		},
