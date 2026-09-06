@@ -1,0 +1,14 @@
+import { defineConfig } from "oxfmt"
+
+export default defineConfig({
+	printWidth: 120,
+	singleQuote: false,
+	trailingComma: "all",
+	bracketSpacing: true,
+	bracketSameLine: false,
+	tabWidth: 4,
+	semi: false,
+	useTabs: true,
+	arrowParens: "always",
+	endOfLine: "lf",
+})

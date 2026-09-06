@@ -1,0 +1,362 @@
+:root {
+	color-scheme: light;
+
+	font-family:
+		Inter,
+		-apple-system,
+		BlinkMacSystemFont,
+		"Segoe UI",
+		sans-serif;
+
+	/*
+	 * Цвета самих SVG.
+	 *
+	 * Generated-компоненты уже используют:
+	 *
+	 * var(--icon-color, currentColor)
+	 * var(--icon-secondary-color, currentColor)
+	 */
+	--icon-color: #354052;
+	--icon-secondary-color: #354052;
+
+	/*
+	 * Высота обязана совпадать с ROW_HEIGHT
+	 * из app.tsx.
+	 */
+	--icon-row-height: 244px;
+
+	background: #fff;
+	color: #111827;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	width: 100%;
+	min-width: 0;
+	height: 100%;
+	min-height: 100%;
+
+	margin: 0;
+}
+
+body {
+	overflow: hidden;
+
+	background: #fff;
+}
+
+button,
+input {
+	font: inherit;
+}
+
+button {
+	color: inherit;
+}
+
+.icons-docs {
+	display: flex;
+	flex-direction: column;
+
+	width: 100%;
+	height: 100vh;
+
+	padding: 24px;
+}
+
+/*
+ * Верхняя область.
+ *
+ * Она находится вне virtual viewport,
+ * поэтому поиск всегда остаётся на экране.
+ */
+.icons-header {
+	display: grid;
+
+	grid-template-columns:
+		auto
+		minmax(280px, 1fr);
+
+	align-items: center;
+
+	gap: 40px;
+
+	flex: 0 0 auto;
+
+	padding-bottom: 20px;
+}
+
+.icons-title {
+	margin: 0;
+
+	font-size: 22px;
+	font-weight: 650;
+	line-height: 1.2;
+}
+
+.icons-counter {
+	margin-top: 5px;
+
+	color: #8b93a1;
+
+	font-size: 13px;
+}
+
+.icons-search {
+	width: 100%;
+	height: 42px;
+
+	padding: 0 14px;
+
+	border: 1px solid #e2e5e9;
+	border-radius: 7px;
+
+	outline: none;
+
+	background: #f6f7f8;
+	color: #111827;
+
+	transition:
+		border-color 120ms ease,
+		background 120ms ease,
+		box-shadow 120ms ease;
+}
+
+.icons-search::placeholder {
+	color: #9ca3af;
+}
+
+.icons-search:focus {
+	border-color: #aeb5bf;
+
+	background: #fff;
+
+	box-shadow: 0 0 0 3px rgb(53 64 82 / 8%);
+}
+
+/*
+ * Настоящий scroll-container.
+ *
+ * Высота viewport:
+ *
+ * 8 строк × 244px = 1952px.
+ *
+ * Если физический экран ниже, контейнер естественно
+ * займёт доступную высоту страницы. Алгоритм всё равно
+ * держит максимум 128 карточек.
+ */
+.virtual-viewport {
+	flex: 1 1 auto;
+
+	min-height: 0;
+
+	overflow-x: hidden;
+	overflow-y: auto;
+
+	/*
+	 * Если места достаточно, визуальная область
+	 * рассчитана на 8 полных строк.
+	 */
+	max-height: calc(var(--icon-row-height) * 8);
+
+	scrollbar-gutter: stable;
+}
+
+/*
+ * Этот элемент создаёт полную виртуальную высоту
+ * нескольких тысяч иконок.
+ *
+ * Самих React-компонентов внутри него при этом нет.
+ */
+.virtual-space {
+	position: relative;
+
+	width: 100%;
+}
+
+/*
+ * Только этот элемент физически содержит карточки.
+ *
+ * Он перемещается transform-ом к нужной позиции.
+ */
+.virtual-grid {
+	position: absolute;
+	top: 0;
+	left: 0;
+
+	display: grid;
+
+	/*
+	 * Всегда строго 8 колонок.
+	 */
+	grid-template-columns: repeat(8, minmax(0, 1fr));
+
+	grid-auto-rows: var(--icon-row-height);
+
+	width: 100%;
+
+	will-change: transform;
+}
+
+/*
+ * Одна карточка.
+ */
+.icon-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+
+	min-width: 0;
+	height: var(--icon-row-height);
+
+	padding: 18px 8px 12px;
+
+	border: 1px solid transparent;
+	border-radius: 8px;
+
+	transition:
+		background 120ms ease,
+		border-color 120ms ease;
+}
+
+.icon-card:hover,
+.icon-card:focus-within {
+	border-color: #e8eaed;
+
+	background: #fafafa;
+}
+
+/*
+ * Требуемый размер SVG — строго 56 × 56.
+ */
+.icon-preview {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	flex: 0 0 56px;
+
+	width: 56px;
+	height: 56px;
+
+	color: var(--icon-color);
+
+	margin-bottom: 12px;
+}
+
+.icon-preview > svg {
+	display: block;
+
+	width: 56px;
+	height: 56px;
+}
+
+/*
+ * Название под самой иконкой.
+ */
+.icon-name {
+	width: 100%;
+	height: 18px;
+
+	overflow: hidden;
+
+	color: #697386;
+
+	font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+	font-size: 11px;
+	line-height: 18px;
+
+	text-align: center;
+
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * Три кнопки друг под другом.
+ */
+.icon-actions {
+	display: flex;
+	flex-direction: column;
+
+	gap: 5px;
+
+	width: 100%;
+
+	margin-top: 12px;
+}
+
+/*
+ * Содержимое может быть длинным, например:
+ *
+ * <SquareRoundedChevronLeftFilledIcon />
+ *
+ * поэтому используем ellipsis.
+ */
+.icon-copy-button {
+	display: block;
+
+	width: 100%;
+	min-width: 0;
+	height: 30px;
+
+	overflow: hidden;
+
+	padding: 0 8px;
+
+	border: 1px solid #e0e3e7;
+	border-radius: 5px;
+
+	background: #fff;
+	color: #596273;
+
+	cursor: pointer;
+
+	font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+	font-size: 10px;
+	line-height: 28px;
+
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+
+	transition:
+		border-color 100ms ease,
+		background 100ms ease,
+		color 100ms ease;
+}
+
+.icon-copy-button:hover {
+	border-color: #b9c0c9;
+
+	background: #f2f4f6;
+	color: #111827;
+}
+
+.icon-copy-button:active {
+	background: #e8ebef;
+}
+
+/*
+ * Состояние пустого поиска.
+ */
+.icons-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	flex: 1;
+
+	min-height: 300px;
+
+	color: #8b93a1;
+
+	font-size: 14px;
+}
