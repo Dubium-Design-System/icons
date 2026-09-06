@@ -5,6 +5,10 @@ import type { Plugin, ViteDevServer } from "vite"
 
 /**
  * Идентификатор виртуального модуля, через который загружается реестр иконок.
+ *
+ * @remarks
+ * Используется в приложении как источник `iconRegistry` с ленивыми
+ * загрузчиками всех иконок, обнаруженных плагином.
  */
 const VIRTUAL_MODULE_ID = "virtual:@dubium/icons-registry"
 
@@ -18,11 +22,18 @@ const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`
 
 /**
  * Расширения файлов, которые плагин считает исходниками и сканирует.
+ *
+ * @remarks
+ * Файлы с другими расширениями игнорируются при рекурсивном обходе проекта.
  */
 const DEFAULT_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"])
 
 /**
  * Каталоги, которые плагин пропускает при рекурсивном обходе.
+ *
+ * @remarks
+ * Позволяет не сканировать служебные и сборочные директории, такие как
+ * `node_modules`, `dist`, `.git` и т.п.
  */
 const DEFAULT_IGNORED_DIRECTORIES = new Set([
 	".git",
@@ -38,31 +49,39 @@ const DEFAULT_IGNORED_DIRECTORIES = new Set([
 
 /**
  * Источник, из которого разрешаются имена иконок.
- *
- * @remarks
- * Источник может быть локальным справочником React-компонентов
- * или npm-пакетом с готовыми иконками.
  */
 export type TDubiumIconSource =
 	| {
 			/**
-			 * Локальный справочник React-компонентов.
-			 * `UserIcon.tsx` даёт имя `User`.
+			 * Локальный источник иконок.
+			 *
+			 * @example
+			 * `UserIcon.tsx` при suffix `Icon` даёт имя `User`.
 			 */
 			type: "local"
-			/** Путь к директории с компонентами относительно Vite root. */
+
+			/** Путь относительно Vite root. */
 			path: string
-			/** Суффикс имени файла, по умолчанию `Icon`. */
+
+			/** @default "Icon" */
 			suffix?: string
 	  }
 	| {
 			/**
-			 * Источник-пакет (npm).
+			 * Package fallback для иконок, отсутствующих в local sources.
 			 *
-			 * Плейсхолдер `{name}` заменяется найденным именем иконки.
+			 * @remarks
+			 * Допускается не более одного `package` source.
+			 * Шаблон должен содержать `{name}`.
 			 */
 			type: "package"
-			/** Шаблон пути импорта, в котором `{name}` заменяется именем иконки. */
+
+			/**
+			 * Шаблон пути импорта.
+			 *
+			 * @example
+			 * `@dubium/icons/icons/{name}`
+			 */
 			importPattern: string
 	  }
 
@@ -76,12 +95,11 @@ export interface DubiumIconsPluginOptions {
 	/**
 	 * Дополнительные строковые поля, которые считаются ссылками на иконки.
 	 *
-	 * @remarks
-	 * Пример для MF/EventBus:
-	 *
 	 * @example
 	 * ```ts
-	 * { iconName: "Icon2fa" }
+	 * dubiumIcons({
+	 * 	propertyNames: ["iconName"],
+	 * })
 	 * ```
 	 */
 	propertyNames?: readonly string[]
@@ -90,9 +108,30 @@ export interface DubiumIconsPluginOptions {
 	scan?: readonly string[]
 
 	/**
-	 * Справочники, где разрешать найденные имена.
-	 * Порядок важен: local sources проверяются сверху вниз,
-	 * затем используется первый package source.
+	 * Источники иконок.
+	 *
+	 * @remarks
+	 * Можно указать несколько `local` sources.
+	 * Они проверяются сверху вниз.
+	 *
+	 * Дополнительно можно указать максимум один `package` source,
+	 * который используется как fallback.
+	 *
+	 * @example
+	 * ```ts
+	 * dubiumIcons({
+	 * 	sources: [
+	 * 		{
+	 * 			type: "local",
+	 * 			path: "src/icons",
+	 * 		},
+	 * 		{
+	 * 			type: "package",
+	 * 			importPattern: "@dubium/icons/icons/{name}",
+	 * 		},
+	 * 	],
+	 * })
+	 * ```
 	 */
 	sources?: readonly TDubiumIconSource[]
 }
@@ -122,8 +161,8 @@ interface ILocalSourceCatalog {
 /**
  * Приводит пути к Unix-разделителю `/`.
  *
- * @param value - Исходный путь.
- * @returns Путь с разделителями `/`.
+ * @param value - Путь с разделителями текущей операционной системы
+ * @returns Путь с разделителями `/`
  */
 const normalizePath = (value: string): string => value.replaceAll("\\", "/")
 
@@ -141,11 +180,11 @@ const isPathInsideDirectory = (directory: string, path: string): boolean => {
 }
 
 /**
- * Проверяет, что два множества строк содержат одинаковые элементы.
+ * Проверяет, что два множества содержат одинаковые элементы.
  *
- * @param left - Первое множество.
- * @param right - Второе множество.
- * @returns `true`, если множества равны.
+ * @param left - Первое множество
+ * @param right - Второе множество
+ * @returns `true`, если множества равны
  */
 const setsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string>): boolean => {
 	if (left.size !== right.size) {
@@ -162,18 +201,18 @@ const setsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string>): boole
 }
 
 /**
- * Экранирует спецсимволы регулярного выражения в строке.
+ * Экранирует спецсимволы регулярного выражения.
  *
- * @param value - Строка для экранирования.
- * @returns Строка, безопасная для использования в `RegExp`.
+ * @param value - Строка для экранирования
+ * @returns Строка, безопасная для использования в `RegExp`
  */
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 
 /**
  * Создаёт регулярное выражение для поиска открывающих тегов компонентов.
  *
- * @param componentNames - Имена компонентов, например `Icon`.
- * @returns Регулярное выражение для поиска тегов.
+ * @param componentNames - Имена компонентов, например `Icon`
+ * @returns Регулярное выражение для поиска тегов
  */
 const createComponentPattern = (componentNames: readonly string[]): RegExp => {
 	const escapedNames = componentNames.map(escapeRegExp)
@@ -182,14 +221,14 @@ const createComponentPattern = (componentNames: readonly string[]): RegExp => {
 }
 
 /**
- * Находит индекс конца открывающего JSX-тега, начиная с заданной позиции.
+ * Находит конец открывающего JSX-тега, начиная с заданной позиции.
  *
  * @remarks
  * Учитывает строки в кавычках и фигурные скобки выражений.
  *
- * @param source - Исходный текст файла.
- * @param startIndex - Индекс начала тега.
- * @returns Индекс закрывающего символа `>` или `-1`, если тег не найден.
+ * @param source - Исходный текст файла
+ * @param startIndex - Индекс начала тега
+ * @returns Индекс закрывающего символа `>` или `-1`, если тег не найден
  */
 const findTagEnd = (source: string, startIndex: number): number => {
 	let quote: "'" | '"' | "`" | null = null
@@ -243,8 +282,8 @@ const findTagEnd = (source: string, startIndex: number): number => {
 /**
  * Извлекает статическое значение атрибута `name` из открывающего тега.
  *
- * @param openingTag - Текст открывающего тега.
- * @returns Имя иконки или `null`, если имя не статическое.
+ * @param openingTag - Текст открывающего тега
+ * @returns Имя иконки или `null`, если имя не статическое
  */
 const parseStaticName = (openingTag: string): string | null => {
 	const quotedAttribute = /\bname\s*=\s*(["'])(.*?)\1/su.exec(openingTag)
@@ -263,19 +302,19 @@ const parseStaticName = (openingTag: string): string | null => {
 }
 
 /**
- * Проверяет, содержит ли открывающий тег атрибут `name`.
+ * Проверяет наличие атрибута `name` в открывающем теге.
  *
- * @param openingTag - Текст открывающего тега.
- * @returns `true`, если атрибут `name` присутствует.
+ * @param openingTag - Текст открывающего тега
+ * @returns `true`, если атрибут `name` присутствует
  */
 const hasNameAttribute = (openingTag: string): boolean => /\bname\s*=/u.test(openingTag)
 
 /**
- * Ищет в исходнике строковые значения указанных свойств и добавляет их в набор иконок.
+ * Ищет строковые значения указанных свойств в исходнике.
  *
- * @param source - Исходный текст файла.
- * @param propertyNames - Имена свойств, значения которых считаются иконками.
- * @param icons - Набор, в который добавляются найденные имена.
+ * @param source - Исходный текст файла
+ * @param propertyNames - Имена свойств, значения которых считаются иконками
+ * @param icons - Набор, в который добавляются найденные имена
  */
 const scanPropertyNames = (source: string, propertyNames: readonly string[], icons: Set<string>): void => {
 	for (const propertyName of propertyNames) {
@@ -299,10 +338,10 @@ const scanPropertyNames = (source: string, propertyNames: readonly string[], ico
 /**
  * Сканирует исходник и собирает статические имена иконок.
  *
- * @param source - Исходный текст файла.
- * @param componentNames - Имена компонентов-иконок.
- * @param propertyNames - Имена свойств со строковыми ссылками на иконки.
- * @returns Результат сканирования: найденные имена и число динамических.
+ * @param source - Исходный текст файла
+ * @param componentNames - Имена компонентов-иконок
+ * @param propertyNames - Имена свойств со строковыми ссылками на иконки
+ * @returns Результат сканирования: найденные имена и число динамических
  */
 const scanSource = (
 	source: string,
@@ -344,14 +383,14 @@ const scanSource = (
 }
 
 /**
- * Рекурсивно собирает список исходных файлов в директории.
+ * Рекурсивно собирает исходные файлы в директории.
  *
  * @remarks
  * Игнорирует каталоги из `DEFAULT_IGNORED_DIRECTORIES` и файлы
  * с расширениями вне `DEFAULT_EXTENSIONS`.
  *
- * @param directory - Абсолютный путь к директории.
- * @returns Список путей к исходным файлам.
+ * @param directory - Абсолютный путь к директории
+ * @returns Список путей к исходным файлам
  */
 const getSourceFiles = async (directory: string): Promise<string[]> => {
 	let entries
@@ -392,9 +431,10 @@ const getSourceFiles = async (directory: string): Promise<string[]> => {
  * Имя иконки получается из имени файла вычитанием суффикса.
  * Например, `UserIcon.tsx` при суффиксе `Icon` даёт имя `User`.
  *
- * @param root - Корень Vite-проекта.
- * @param source - Настройки локального источника.
- * @returns Каталог иконок с путями к компонентам.
+ * @param root - Корень Vite-проекта
+ * @param source - Настройки локального источника
+ * @returns Каталог иконок с путями к компонентам
+ * @throws Если в одном local source найдены две иконки с одинаковым именем
  */
 const buildLocalCatalog = async (
 	root: string,
@@ -440,17 +480,35 @@ const buildLocalCatalog = async (
 }
 
 /**
+ * Проверяет настройки источников иконок на допустимость.
+ *
+ * @param sources - Список настроенных источников иконок
+ * @throws Если указано больше одного package source
+ */
+const validateSources = (sources: readonly TDubiumIconSource[]): void => {
+	const packageSources = sources.filter((source) => source.type === "package")
+
+	if (packageSources.length > 1) {
+		throw new Error(
+			"[@dubium/icons] Допускается только один package source.\n" +
+				`Получено: ${packageSources.length} package sources.\n` +
+				"Используйте несколько local sources и один package source как fallback.",
+		)
+	}
+}
+
+/**
  * Генерирует исходный код виртуального модуля с реестром иконок.
  *
- * @param iconNames - Имена иконок для включения в реестр.
- * @param localCatalogs - Локальные каталоги для разрешения путей импорта.
- * @param packageSources - Package-источники с шаблонами импорта.
- * @returns Строка с исходным кодом виртуального модуля.
+ * @param iconNames - Имена иконок для включения в реестр
+ * @param localCatalogs - Локальные каталоги для разрешения путей импорта
+ * @param packageSource - Package-источник, используемый как fallback
+ * @returns Исходный код виртуального модуля
  */
 const createVirtualModuleSource = (
 	iconNames: readonly string[],
 	localCatalogs: readonly ILocalSourceCatalog[],
-	packageSources: readonly Extract<TDubiumIconSource, { type: "package" }>[],
+	packageSource: Extract<TDubiumIconSource, { type: "package" }> | undefined,
 ): string => {
 	const entries: string[] = []
 
@@ -466,8 +524,8 @@ const createVirtualModuleSource = (
 			}
 		}
 
-		if (!importPath && packageSources[0]) {
-			importPath = packageSources[0].importPattern.replaceAll("{name}", name)
+		if (!importPath && packageSource) {
+			importPath = packageSource.importPattern.replaceAll("{name}", name)
 		}
 
 		if (!importPath) {
@@ -492,12 +550,12 @@ ${entries.join("\n")}
  *
  * @remarks
  * Плагин сканирует JSX/TSX на статические имена у компонента `<Icon>` и другие
- * строковые поля, затем создаёт virtual registry только для найденных имён.
+ * строковые поля, затем создаёт виртуальный реестр только для найденных имён.
  * Благодаря этому Rollup/Vite видит `import()` только реально используемых
  * иконок, поэтому остальные не попадают в итоговую сборку приложения.
  *
- * @param options - Настройки плагина.
- * @returns Объект Vite-плагина.
+ * @param options - Настройки плагина
+ * @returns Объект Vite-плагина
  *
  * @example
  * ```ts
@@ -524,11 +582,17 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 				},
 			]
 
+	/**
+	 * Проверяем конфигурацию сразу при создании плагина,
+	 * чтобы ошибка была понятной и появилась как можно раньше.
+	 */
+	validateSources(sources)
+
 	const localSourceOptions = sources.filter(
 		(source): source is Extract<TDubiumIconSource, { type: "local" }> => source.type === "local",
 	)
 
-	const packageSources = sources.filter(
+	const packageSource = sources.find(
 		(source): source is Extract<TDubiumIconSource, { type: "package" }> => source.type === "package",
 	)
 
@@ -542,7 +606,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	/**
 	 * Возвращает отсортированный список всех обнаруженных имён иконок.
 	 *
-	 * @returns Отсортированный массив имён иконок.
+	 * @returns Отсортированный массив имён иконок
 	 */
 	const getAllIcons = (): string[] => {
 		const icons = new Set<string>()
@@ -559,8 +623,8 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	/**
 	 * Сканирует один файл и обновляет внутренние карты иконок.
 	 *
-	 * @param file - Путь к файлу.
-	 * @returns `true`, если состояние иконок изменилось.
+	 * @param file - Путь к файлу
+	 * @returns `true`, если состояние иконок изменилось
 	 */
 	const scanFile = async (file: string): Promise<boolean> => {
 		const normalizedFile = normalizePath(file)
@@ -603,9 +667,9 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	}
 
 	/**
-	 * Сканирует все каталоги проекта.
+	 * Сканирует все настроенные директории проекта.
 	 *
-	 * @param pluginContext - Контекст плагина для регистрации отслеживаемых файлов.
+	 * @param pluginContext - Контекст плагина для регистрации отслеживаемых файлов
 	 */
 	const scanProject = async (pluginContext?: { addWatchFile: (id: string) => void }): Promise<void> => {
 		fileIcons.clear()
@@ -618,6 +682,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 			for (const file of files) {
 				pluginContext?.addWatchFile(file)
+
 				await scanFile(file)
 			}
 		}
@@ -625,6 +690,9 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 	/**
 	 * Перестраивает локальные каталоги иконок из настроенных источников.
+	 *
+	 * @remarks
+	 * Пересобирает карты «имя иконки -> путь к компоненту» для каждого local source.
 	 */
 	const rebuildLocalCatalogs = async (): Promise<void> => {
 		localCatalogs = await Promise.all(localSourceOptions.map((source) => buildLocalCatalog(root, source)))
@@ -641,6 +709,10 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 	/**
 	 * Инвалидирует виртуальный модуль и запускает полную перезагрузку dev-сервера.
+	 *
+	 * @remarks
+	 * Выполняет `full-reload` через websocket dev-сервера, поэтому изменения
+	 * реестра иконок сразу применяются в браузере.
 	 */
 	const invalidateVirtualModule = (): void => {
 		if (!server) {
@@ -662,12 +734,22 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		name: "dubium-icons",
 		enforce: "pre",
 
-		/** Сохраняет корень проекта из resolved config. */
+		/**
+		 * Сохраняет корень проекта из разрешённой Vite-конфигурации.
+		 *
+		 * @param config - Разрешённая Vite-конфигурация
+		 */
 		configResolved(config) {
 			root = config.root
 		},
 
-		/** Перестраивает каталоги и сканирует проект перед началом сборки. */
+		/**
+		 * Перестраивает каталоги и сканирует проект перед началом сборки.
+		 *
+		 * @remarks
+		 * Предупреждает о найденных динамических `<Icon name={...}>`,
+		 * которые не могут быть извлечены на этапе компиляции.
+		 */
 		async buildStart() {
 			await rebuildLocalCatalogs()
 			await scanProject(this)
@@ -684,7 +766,15 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			}
 		},
 
-		/** Настраивает watcher dev-сервера для пересканирования изменённых файлов. */
+		/**
+		 * Настраивает watcher dev-сервера для отслеживания изменений в проекте.
+		 *
+		 * @remarks
+		 * Дополнительно следит за каталогами local-источников, чтобы вовремя
+		 * перестраивать каталоги иконок при изменении структуры файлов.
+		 *
+		 * @param devServer - Экземпляр dev-сервера Vite
+		 */
 		configureServer(devServer) {
 			server = devServer
 
@@ -693,9 +783,13 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			}
 
 			/**
-			 * Обработчик добавления или удаления файла в dev-сервере.
+			 * Обрабатывает добавление или удаление файлов и директорий.
 			 *
-			 * @param file - Путь к изменённому файлу.
+			 * @remarks
+			 * Изменение внутри local source перестраивает каталоги;
+			 * остальные изменения приводят к пересканированию файла.
+			 *
+			 * @param file - Путь к изменённому файлу или директории
 			 */
 			const onStructureChange = async (file: string): Promise<void> => {
 				const localSourceChanged = isLocalSourcePath(file)
@@ -732,7 +826,12 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			})
 		},
 
-		/** Резолвит публичный идентификатор виртуального модуля в защищённый (`\0`-префикс). */
+		/**
+		 * Резолвит публичный идентификатор виртуального модуля в защищённый.
+		 *
+		 * @param id - Идентификатор модуля, запрошенный из исходного кода
+		 * @returns Защищённый идентификатор модуля или `null`
+		 */
 		resolveId(id) {
 			if (id === VIRTUAL_MODULE_ID) {
 				return RESOLVED_VIRTUAL_MODULE_ID
@@ -741,16 +840,26 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			return null
 		},
 
-		/** Загружает исходный код виртуального модуля с реестром иконок. */
+		/**
+		 * Загружает исходный код виртуального модуля с реестром иконок.
+		 *
+		 * @param id - Идентификатор модуля
+		 * @returns Исходный код модуля или `null`
+		 */
 		load(id) {
 			if (id !== RESOLVED_VIRTUAL_MODULE_ID) {
 				return null
 			}
 
-			return createVirtualModuleSource(getAllIcons(), localCatalogs, packageSources)
+			return createVirtualModuleSource(getAllIcons(), localCatalogs, packageSource)
 		},
 
-		/** Пересканирует изменённый файл и инвалидирует модуль при изменении иконок. */
+		/**
+		 * Пересканирует изменённый файл и инвалидирует модуль при изменении иконок.
+		 *
+		 * @param context - Контекст hot update
+		 * @returns Пустой массив изменений, так как обновление выполняется перезагрузкой
+		 */
 		async handleHotUpdate(context) {
 			const changed = await scanFile(context.file)
 
