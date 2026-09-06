@@ -1,6 +1,17 @@
 import type { TIconLoader, TIconRegistry } from "../icon/Icon.types.js"
 
 /**
+ * Одна регистрация иконки конкретным владельцем.
+ */
+interface IRuntimeIconRegistration {
+	/** Ленивый загрузчик иконки. */
+	loader: TIconLoader
+
+	/** Уникальный идентификатор конкретной регистрации. */
+	token: symbol
+}
+
+/**
  * Внутреннее состояние runtime-реестра иконок.
  *
  * @remarks
@@ -10,10 +21,16 @@ import type { TIconLoader, TIconRegistry } from "../icon/Icon.types.js"
 interface IRuntimeIconStore {
 	/** Набор подписчиков, уведомляемых об изменении реестра. */
 	listeners: Set<VoidFunction>
+
 	/** Связь «владелец -> набор имён зарегистрированных иконок». */
 	owners: Map<string, Set<string>>
-	/** Связь «имя иконки -> (владелец -> загрузчик иконки)». */
-	registrations: Map<string, Map<string, TIconLoader>>
+
+	/** Связь «имя иконки -> (владелец -> регистрация иконки)». */
+	registrations: Map<string, Map<string, IRuntimeIconRegistration>>
+
+	/** Связь «владелец -> токен текущей активной регистрации». */
+	ownerTokens: Map<string, symbol>
+
 	/** Монотонно растущий номер версии реестра. */
 	version: number
 }
@@ -32,6 +49,7 @@ const createStore = (): IRuntimeIconStore => ({
 	listeners: new Set(),
 	owners: new Map(),
 	registrations: new Map(),
+	ownerTokens: new Map(),
 	version: 0,
 })
 
@@ -64,34 +82,58 @@ const notify = (): void => {
 }
 
 /**
- * Удаляет все регистрации владельца из реестра.
+ * Удаляет регистрацию владельца из реестра.
  *
- * @param owner - Идентификатор владельца (например, имя приложения или микрофронтенда)
- * @returns `true`, если у владельца были регистрации, иначе `false`
+ * @remarks
+ * Если передан `token`, удаление выполняется только при совпадении с текущим
+ * токеном владельца — это защищает свежую регистрацию от cleanup старой.
+ *
+ * @param owner - Идентификатор владельца
+ * @param token - Ожидаемый токен текущей регистрации (опционально)
+ * @returns `true`, если регистрация была удалена
  */
-const removeOwner = (owner: string): boolean => {
+const removeOwner = (owner: string, token?: symbol): boolean => {
 	const store = getStore()
-	const names = store.owners.get(owner)
+	const currentToken = store.ownerTokens.get(owner)
 
-	if (!names) {
+	if (!currentToken) {
 		return false
 	}
 
-	for (const name of names) {
-		const registrations = store.registrations.get(name)
+	if (token && currentToken !== token) {
+		return false
+	}
 
-		if (!registrations) {
-			continue
-		}
+	const names = store.owners.get(owner)
 
-		registrations.delete(owner)
+	if (names) {
+		for (const name of names) {
+			const registrations = store.registrations.get(name)
 
-		if (registrations.size === 0) {
-			store.registrations.delete(name)
+			if (!registrations) {
+				continue
+			}
+
+			const registration = registrations.get(owner)
+
+			if (!registration) {
+				continue
+			}
+
+			if (registration.token !== currentToken) {
+				continue
+			}
+
+			registrations.delete(owner)
+
+			if (registrations.size === 0) {
+				store.registrations.delete(name)
+			}
 		}
 	}
 
 	store.owners.delete(owner)
+	store.ownerTokens.delete(owner)
 
 	return true
 }
@@ -104,30 +146,48 @@ const removeOwner = (owner: string): boolean => {
  * поэтому Host и Remote в одной browser realm видят одну регистрацию даже при
  * разных копиях пакета `@dubium/icons` в бандле.
  *
+ * Повторная регистрация того же `owner` заменяет предыдущую.
+ * Cleanup от старой регистрации не может удалить более новую регистрацию.
+ *
  * @param owner - Идентификатор владельца реестра
  * @param icons - Реестр иконок с ленивыми загрузчиками
- * @returns Функция отмены регистрации; повторный вызов безопасен
+ * @returns Функция отмены именно этой регистрации; повторный вызов безопасен
  */
 export const registerIcons = (owner: string, icons: TIconRegistry): VoidFunction => {
 	const store = getStore()
 
 	removeOwner(owner)
 
+	const token = Symbol(owner)
 	const names = new Set<string>()
 
 	for (const [name, loader] of Object.entries(icons)) {
-		const registrations = store.registrations.get(name) ?? new Map<string, TIconLoader>()
+		const registrations = store.registrations.get(name) ?? new Map<string, IRuntimeIconRegistration>()
 
-		registrations.set(owner, loader)
+		registrations.set(owner, {
+			loader,
+			token,
+		})
+
 		store.registrations.set(name, registrations)
 		names.add(name)
 	}
 
 	store.owners.set(owner, names)
+	store.ownerTokens.set(owner, token)
+
 	notify()
 
+	let active = true
+
 	return () => {
-		if (removeOwner(owner)) {
+		if (!active) {
+			return
+		}
+
+		active = false
+
+		if (removeOwner(owner, token)) {
 			notify()
 		}
 	}
@@ -151,8 +211,8 @@ export const getRuntimeIconLoader = (name: string): TIconLoader | undefined => {
 
 	let loader: TIconLoader | undefined
 
-	for (const currentLoader of registrations.values()) {
-		loader = currentLoader
+	for (const registration of registrations.values()) {
+		loader = registration.loader
 	}
 
 	return loader

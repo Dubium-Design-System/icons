@@ -1,5 +1,5 @@
 import { readdir, readFile } from "node:fs/promises"
-import { basename, extname, join, relative, resolve } from "node:path"
+import { basename, extname, isAbsolute, join, relative, resolve } from "node:path"
 
 import type { Plugin, ViteDevServer } from "vite"
 
@@ -126,6 +126,19 @@ interface ILocalSourceCatalog {
  * @returns Путь с разделителями `/`.
  */
 const normalizePath = (value: string): string => value.replaceAll("\\", "/")
+
+/**
+ * Проверяет, находится ли путь внутри указанной директории.
+ *
+ * @param directory - Абсолютный путь к родительской директории
+ * @param path - Проверяемый путь
+ * @returns `true`, если путь лежит внутри директории или совпадает с ней
+ */
+const isPathInsideDirectory = (directory: string, path: string): boolean => {
+	const relativePath = relative(directory, path)
+
+	return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath))
+}
 
 /**
  * Проверяет, что два множества строк содержат одинаковые элементы.
@@ -267,6 +280,7 @@ const hasNameAttribute = (openingTag: string): boolean => /\bname\s*=/u.test(ope
 const scanPropertyNames = (source: string, propertyNames: readonly string[], icons: Set<string>): void => {
 	for (const propertyName of propertyNames) {
 		const escapedName = escapeRegExp(propertyName)
+
 		const pattern = new RegExp(
 			`(?:\\b${escapedName}\\b|["']${escapedName}["'])\\s*:\\s*(["'])([^"'\\n\\r]+)\\1`,
 			"gu",
@@ -297,6 +311,7 @@ const scanSource = (
 ): ScanResult => {
 	const icons = new Set<string>()
 	const componentPattern = createComponentPattern(componentNames)
+
 	let dynamicNames = 0
 
 	for (const match of source.matchAll(componentPattern)) {
@@ -342,7 +357,9 @@ const getSourceFiles = async (directory: string): Promise<string[]> => {
 	let entries
 
 	try {
-		entries = await readdir(directory, { withFileTypes: true })
+		entries = await readdir(directory, {
+			withFileTypes: true,
+		})
 	} catch {
 		return []
 	}
@@ -386,6 +403,7 @@ const buildLocalCatalog = async (
 	const absolutePath = resolve(root, source.path)
 	const suffix = source.suffix ?? "Icon"
 	const files = await getSourceFiles(absolutePath)
+
 	const icons = new Map<string, string>()
 
 	for (const file of files) {
@@ -398,9 +416,24 @@ const buildLocalCatalog = async (
 
 		const name = fileBaseName.slice(0, -suffix.length)
 
-		if (name) {
-			icons.set(name, normalizePath(file))
+		if (!name) {
+			continue
 		}
+
+		const normalizedFile = normalizePath(file)
+		const existingFile = icons.get(name)
+
+		if (existingFile) {
+			throw new Error(
+				`[@dubium/icons] Дублирующееся имя локальной иконки "${name}".\n` +
+					"Найдено в:\n" +
+					`  - ${existingFile}\n` +
+					`  - ${normalizedFile}\n` +
+					"Переименуйте один из файлов или используйте другой суффикс/структуру источника.",
+			)
+		}
+
+		icons.set(name, normalizedFile)
 	}
 
 	return { icons }
@@ -477,8 +510,11 @@ ${entries.join("\n")}
  */
 export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	const componentNames = options.componentNames?.length ? [...options.componentNames] : ["Icon"]
+
 	const propertyNames = options.propertyNames?.length ? [...options.propertyNames] : []
+
 	const scanDirectories = options.scan?.length ? [...options.scan] : ["src"]
+
 	const sources: readonly TDubiumIconSource[] = options.sources?.length
 		? options.sources
 		: [
@@ -491,6 +527,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	const localSourceOptions = sources.filter(
 		(source): source is Extract<TDubiumIconSource, { type: "local" }> => source.type === "local",
 	)
+
 	const packageSources = sources.filter(
 		(source): source is Extract<TDubiumIconSource, { type: "package" }> => source.type === "package",
 	)
@@ -529,9 +566,11 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		const normalizedFile = normalizePath(file)
 
 		if (!DEFAULT_EXTENSIONS.has(extname(file).toLowerCase())) {
-			fileIcons.delete(normalizedFile)
-			dynamicFiles.delete(normalizedFile)
-			return false
+			const hadIcons = fileIcons.delete(normalizedFile)
+
+			const hadDynamicNames = dynamicFiles.delete(normalizedFile)
+
+			return hadIcons || hadDynamicNames
 		}
 
 		let source: string
@@ -540,13 +579,16 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			source = await readFile(file, "utf8")
 		} catch {
 			const hadIcons = fileIcons.delete(normalizedFile)
+
 			const hadDynamicNames = dynamicFiles.delete(normalizedFile)
 
 			return hadIcons || hadDynamicNames
 		}
 
 		const previousIcons = fileIcons.get(normalizedFile) ?? new Set<string>()
+
 		const previousDynamicNames = dynamicFiles.get(normalizedFile) ?? 0
+
 		const result = scanSource(source, componentNames, propertyNames)
 
 		fileIcons.set(normalizedFile, result.icons)
@@ -571,6 +613,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 		for (const directory of scanDirectories) {
 			const absoluteDirectory = resolve(root, directory)
+
 			const files = await getSourceFiles(absoluteDirectory)
 
 			for (const file of files) {
@@ -588,6 +631,15 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	}
 
 	/**
+	 * Проверяет, находится ли путь внутри одного из настроенных local-источников.
+	 *
+	 * @param file - Путь к файлу
+	 * @returns `true`, если файл лежит внутри любого локального источника
+	 */
+	const isLocalSourcePath = (file: string): boolean =>
+		localSourceOptions.some((source) => isPathInsideDirectory(resolve(root, source.path), file))
+
+	/**
 	 * Инвалидирует виртуальный модуль и запускает полную перезагрузку dev-сервера.
 	 */
 	const invalidateVirtualModule = (): void => {
@@ -601,7 +653,9 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			server.moduleGraph.invalidateModule(module)
 		}
 
-		server.ws.send({ type: "full-reload" })
+		server.ws.send({
+			type: "full-reload",
+		})
 	}
 
 	return {
@@ -634,29 +688,51 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		configureServer(devServer) {
 			server = devServer
 
+			for (const source of localSourceOptions) {
+				devServer.watcher.add(resolve(root, source.path))
+			}
+
 			/**
 			 * Обработчик добавления или удаления файла в dev-сервере.
 			 *
 			 * @param file - Путь к изменённому файлу.
 			 */
-			const onChange = async (file: string): Promise<void> => {
-				const changed = await scanFile(file)
+			const onStructureChange = async (file: string): Promise<void> => {
+				const localSourceChanged = isLocalSourcePath(file)
 
-				if (changed) {
+				const scanChanged = await scanFile(file)
+
+				if (localSourceChanged) {
+					await rebuildLocalCatalogs()
+					invalidateVirtualModule()
+					return
+				}
+
+				if (scanChanged) {
 					invalidateVirtualModule()
 				}
 			}
 
-			devServer.watcher.on("add", onChange)
-			devServer.watcher.on("unlink", onChange)
+			devServer.watcher.on("add", onStructureChange)
 
-			return () => {
-				devServer.watcher.off("add", onChange)
-				devServer.watcher.off("unlink", onChange)
-			}
+			devServer.watcher.on("unlink", onStructureChange)
+
+			devServer.watcher.on("addDir", onStructureChange)
+
+			devServer.watcher.on("unlinkDir", onStructureChange)
+
+			devServer.httpServer?.once("close", () => {
+				devServer.watcher.off("add", onStructureChange)
+
+				devServer.watcher.off("unlink", onStructureChange)
+
+				devServer.watcher.off("addDir", onStructureChange)
+
+				devServer.watcher.off("unlinkDir", onStructureChange)
+			})
 		},
 
-		/** Резолвит публичный идентификатор виртуального модуля в защищённый. */
+		/** Резолвит публичный идентификатор виртуального модуля в защищённый (`\0`-префикс). */
 		resolveId(id) {
 			if (id === VIRTUAL_MODULE_ID) {
 				return RESOLVED_VIRTUAL_MODULE_ID
@@ -683,6 +759,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			}
 
 			invalidateVirtualModule()
+
 			return []
 		},
 	}
