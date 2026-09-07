@@ -100,7 +100,10 @@ export type TDubiumIconSource =
  */
 export interface DubiumIconsPluginOptions {
 	/**
-	 * Имена JSX-компонентов, которые считаются иконками.
+	 * Имена JSX-компонентов, которые scanner считает компонентами иконок.
+	 *
+	 * @remarks
+	 * Пустой массив отключает сканирование JSX-компонентов.
 	 *
 	 * @default ["Icon"]
 	 */
@@ -108,6 +111,11 @@ export interface DubiumIconsPluginOptions {
 
 	/**
 	 * Дополнительные строковые поля, которые считаются ссылками на иконки.
+	 *
+	 * @remarks
+	 * Пустой массив отключает сканирование дополнительных свойств.
+	 *
+	 * @default []
 	 *
 	 * @example
 	 * ```ts
@@ -119,7 +127,10 @@ export interface DubiumIconsPluginOptions {
 	propertyNames?: readonly string[]
 
 	/**
-	 * Директории, которые плагин сканирует на предмет использования иконок.
+	 * Директории проекта, которые нужно сканировать.
+	 *
+	 * @remarks
+	 * Пустой массив полностью отключает сканирование директорий.
 	 *
 	 * @default ["src"]
 	 */
@@ -134,6 +145,9 @@ export interface DubiumIconsPluginOptions {
 	 *
 	 * Дополнительно можно указать максимум один `package` source,
 	 * который используется как fallback.
+	 *
+	 * Пустой массив означает, что автоматические источники
+	 * иконок использоваться не будут.
 	 *
 	 * @example
 	 * ```ts
@@ -289,6 +303,10 @@ const isComponentTagStart = (source: string, index: number, componentNames: read
  * @returns Позиции начала найденных JSX-тегов
  */
 const findComponentTagStarts = (source: string, componentNames: readonly string[]): number[] => {
+	if (componentNames.length === 0) {
+		return []
+	}
+
 	const positions: number[] = []
 
 	let state: TSourceState = "code"
@@ -548,8 +566,6 @@ const skipWhitespaceAndComments = (source: string, startIndex: number): number =
  *
  * @remarks
  * Поддерживает одинарные и двойные кавычки.
- * Строки с интерполяцией здесь не используются, поскольку propertyNames
- * предназначен для статических имён иконок.
  *
  * @param source - Исходный текст
  * @param startIndex - Позиция открывающей кавычки
@@ -687,11 +703,7 @@ const parsePropertyAt = (
 
 		const parsedValue = readQuotedString(source, cursor)
 
-		if (!parsedValue) {
-			continue
-		}
-
-		if (!parsedValue.value) {
+		if (!parsedValue?.value) {
 			continue
 		}
 
@@ -714,15 +726,6 @@ const parsePropertyAt = (
  * - `/* ... *\/` комментарии;
  * - обычные строки;
  * - template literals.
- *
- * Поэтому текст вроде:
- *
- * ```ts
- * // iconName: "Fake"
- * const example = 'iconName: "Fake"'
- * ```
- *
- * не добавляет `Fake` в registry.
  *
  * @param source - Исходный текст файла
  * @param propertyNames - Имена свойств, значения которых считаются иконками
@@ -823,11 +826,6 @@ const scanPropertyNames = (source: string, propertyNames: readonly string[], ico
 			continue
 		}
 
-		/*
-		 * Важно: сначала проверяем quoted property.
-		 * Иначе `"iconName": "User"` был бы ошибочно принят
-		 * за обычную строку и пропущен.
-		 */
 		if (character === "'" || character === '"') {
 			const property = parsePropertyAt(source, index, propertyNames)
 
@@ -1111,14 +1109,21 @@ ${entries.join("\n")}
  * ```
  */
 export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
-	const componentNames = options.componentNames?.length ? [...options.componentNames] : ["Icon"]
+	/**
+	 * Значения по умолчанию применяются только когда опция не передана.
+	 *
+	 * @remarks
+	 * Пустой массив — валидное явное значение и не заменяется значением
+	 * по умолчанию.
+	 */
+	const componentNames = options.componentNames ? [...options.componentNames] : ["Icon"]
 
-	const propertyNames = options.propertyNames?.length ? [...options.propertyNames] : []
+	const propertyNames = options.propertyNames ? [...options.propertyNames] : []
 
-	const scanDirectories = options.scan?.length ? [...options.scan] : ["src"]
+	const scanDirectories = options.scan ? [...options.scan] : ["src"]
 
-	const sources: readonly TDubiumIconSource[] = options.sources?.length
-		? options.sources
+	const sources: readonly TDubiumIconSource[] = options.sources
+		? [...options.sources]
 		: [
 				{
 					type: "package",
