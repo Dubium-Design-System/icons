@@ -24,11 +24,6 @@ const collectionDir = fileURLToPath(new URL("../src/icons/collection/", import.m
 const collectionIndex = fileURLToPath(new URL("../src/icons/collection/index.ts", import.meta.url))
 
 /**
- * Путь к Vite-реестру иконок по умолчанию.
- */
-const viteRegistry = fileURLToPath(new URL("../src/icons/vite/icon/Icon.registry.ts", import.meta.url))
-
-/**
  * Значение первичного цвета по умолчанию для пропа `color`.
  */
 const PRIMARY_COLOR_DEFAULT = "var(--icon-color, currentColor)"
@@ -277,35 +272,6 @@ ${exports}
 }
 
 /**
- * Генерирует содержимое файла `src/icons/vite/icon/Icon.registry.ts`.
- *
- * @param icons - Метаданные сгенерированных иконок
- * @returns Исходный код Vite-реестра иконок
- */
-const createViteRegistrySource = (icons) => {
-	const entries = icons
-		.map(({ name, relativePath }) => {
-			return `\t${name}: () => import("../../collection/${relativePath}"),`
-		})
-		.join("\n")
-
-	return `/**
- * СГЕНЕРИРОВАНО АВТОМАТИЧЕСКИ скриптом scripts/sync-icons.mjs.
- * Источник истины: icons/source/*.svg.
- * Не редактировать вручную.
- */
-
-import type { TIconRegistry } from "./Icon.types.js"
-
-export const defaultIcons = {
-${entries}
-} as const satisfies TIconRegistry
-
-export type TDefaultIconName = keyof typeof defaultIcons
-`
-}
-
-/**
  * Удаляет ранее сгенерированные компоненты и создаёт новые из оптимизированных SVG.
  *
  * @returns Количество сгенерированных компонентов
@@ -333,7 +299,7 @@ const generateComponents = async () => {
 }
 
 /**
- * Собирает метаданные иконок и генерирует индекс коллекции и Vite-реестр.
+ * Собирает метаданные иконок и генерирует индекс коллекции.
  *
  * @returns Количество обработанных иконок
  * @throws
@@ -380,9 +346,7 @@ const generateMetadata = async () => {
 
 	const indexSource = createCollectionIndexSource(icons)
 
-	const viteRegistrySource = createViteRegistrySource(icons)
-
-	await Promise.all([writeFile(collectionIndex, indexSource), writeFile(viteRegistry, viteRegistrySource)])
+	await writeFile(collectionIndex, indexSource)
 
 	return icons.length
 }

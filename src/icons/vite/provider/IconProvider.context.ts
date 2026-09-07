@@ -11,7 +11,9 @@ import type { IIconContextValue } from "./IconProvider.types.js"
  *
  * @remarks
  * - Значение по умолчанию содержит пустой реестр (`icons: {}`)
- * - Без `IconProvider` будут доступны только встроенные (`defaultIcons`) иконки
+ * - Без `IconProvider` доступны иконки из compile-time virtual registry
+ *   (`virtual:@dubium/icons-registry`) и иконки, зарегистрированные
+ *   в runtime registry
  */
 export const IconContext = createContext<IIconContextValue<TIconRegistry>>({
 	icons: {},
@@ -32,8 +34,9 @@ export const IconContext = createContext<IIconContextValue<TIconRegistry>>({
  * @remarks
  * - Выполняет приведение типа (`type assertion`), так как TypeScript
  *   не может автоматически вывести тип из `IconProvider`
- * - Используется внутри `Icon` для объединения:
- *   `{ ...defaultIcons, ...icons }`
+ * - Используется внутри `Icon` для доступа к кастомным иконкам,
+ *   которые имеют приоритет над `virtual:@dubium/icons-registry`
+ *   и runtime registry
  */
 export const useIconContext = <TCustomIcons extends TIconRegistry = TEmptyIconRegistry>() => {
 	return useContext(IconContext) as IIconContextValue<TCustomIcons>

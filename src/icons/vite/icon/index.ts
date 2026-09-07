@@ -1,8 +1,9 @@
 /**
- * Публичный API модуля иконок для SPA (клиентский рендеринг).
+ * Публичный API модуля иконок для Vite.
  *
  * Экспортирует компонент `Icon`, фабрику `createIcon` и связанные типы
- * с поддержкой ленивой загрузки иконок через динамический `import()`.
+ * с поддержкой ленивой загрузки иконок через динамический `import()`
+ * и compile-time virtual registry (`virtual:@dubium/icons-registry`).
  */
 
 export { Icon, type IconProps } from "./Icon.js"

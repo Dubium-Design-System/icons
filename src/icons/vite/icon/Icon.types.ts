@@ -2,8 +2,6 @@ import type { ComponentType } from "react"
 
 import type { IIconComponentProps } from "../../collection/types.js"
 
-import type { TDefaultIconName } from "./Icon.registry.js"
-
 /**
  * Тип "пустого" реестра иконок.
  *
@@ -64,7 +62,6 @@ export type TIconRegistry = Readonly<Record<string, TIconLoader>>
  * Тип допустимых имён иконок.
  *
  * Объединяет:
- * - встроенные иконки (`TDefaultIconName`)
  * - кастомные иконки (`TCustomIcons`)
  *
  * @typeParam TCustomIcons - Реестр кастомных иконок
@@ -75,8 +72,6 @@ export type TIconRegistry = Readonly<Record<string, TIconLoader>>
  * // "Close" | "User" | "Settings"
  * ```
  */
-export type TIconName<TCustomIcons extends TIconRegistry = TEmptyIconRegistry> =
-	| Extract<keyof TCustomIcons, string>
-	| TDefaultIconName
+export type TIconName<TIcons extends TIconRegistry> = Extract<keyof TIcons, string>
 
 export type { IIconComponentProps }

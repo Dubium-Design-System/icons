@@ -8,14 +8,6 @@
 	"type": "module",
 	"sideEffects": false,
 	"exports": {
-		"./spa": {
-			"types": "./dist/spa/index.d.ts",
-			"import": "./dist/spa/index.js"
-		},
-		"./ssr": {
-			"types": "./dist/ssr/index.d.ts",
-			"import": "./dist/ssr/index.js"
-		},
 		"./icons": {
 			"types": "./dist/collection/index.d.ts",
 			"import": "./dist/collection/index.js"
