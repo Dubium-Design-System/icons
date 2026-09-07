@@ -33,7 +33,7 @@ export default defineConfig({
 		target: "es2023",
 		sourcemap: false,
 
-		rolldownOptions: {
+		rollupOptions: {
 			external: [
 				/^react(?:\/.*)?$/u,
 				/^react-dom(?:\/.*)?$/u,

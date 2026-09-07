@@ -220,7 +220,7 @@ export default defineConfig({
 		outDir: OUTPUT_DIR,
 		emptyOutDir: true,
 		copyPublicDir: false,
-		rolldownOptions: {
+		rollupOptions: {
 			input: "virtual:svg-build",
 		},
 	},

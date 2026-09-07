@@ -1,3 +1,4 @@
+import { findRegexLiteralEnd } from "./scanner.lexical.js"
 import { isIdentifierCharacter } from "./scanner.imports.js"
 import type { TSourceState } from "./scanner.types.js"
 
@@ -322,6 +323,15 @@ export const scanPropertyNames = (source: string, propertyNames: readonly string
 			state = "block-comment"
 			index += 1
 			continue
+		}
+
+		if (character === "/") {
+			const regexEnd = findRegexLiteralEnd(source, index)
+
+			if (regexEnd !== null) {
+				index = regexEnd - 1
+				continue
+			}
 		}
 
 		if (character === "'" || character === '"') {

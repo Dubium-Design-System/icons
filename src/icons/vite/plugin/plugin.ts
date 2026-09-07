@@ -151,7 +151,10 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 * @param file - Абсолютный путь к файлу
 	 * @returns `true`, если набор иконок или число динамических имён изменились
 	 */
-	const scanFile = async (file: string): Promise<boolean> => {
+	const scanFile = async (
+		file: string,
+		readSource?: () => string | Promise<string>,
+	): Promise<boolean> => {
 		const normalizedFile = normalizePath(file)
 
 		if (!DEFAULT_EXTENSIONS.has(extname(file).toLowerCase())) {
@@ -164,7 +167,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		let source: string
 
 		try {
-			source = await readFile(file, "utf8")
+			source = readSource ? await readSource() : await readFile(file, "utf8")
 		} catch {
 			const hadIcons = fileIcons.delete(normalizedFile)
 			const hadDynamicNames = dynamicFiles.delete(normalizedFile)
@@ -253,6 +256,15 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 */
 	const isLocalSourcePath = (file: string): boolean =>
 		localSourceOptions.some((source) => isPathInsideDirectory(resolve(root, source.path), file))
+
+	/**
+	 * Проверяет, входит ли файл хотя бы в одну директорию из `options.scan`.
+	 *
+	 * @param file - Абсолютный путь к файлу
+	 * @returns `true`, если файл должен участвовать в сканировании приложения
+	 */
+	const isScanPath = (file: string): boolean =>
+		scanDirectories.some((directory) => isPathInsideDirectory(resolve(root, directory), file))
 
 	/**
 	 * Инвалидирует виртуальный модуль реестра и запрашивает полную перезагрузку страницы.
@@ -363,7 +375,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 			 */
 			const onStructureChange = async (file: string): Promise<void> => {
 				const localSourceChanged = isLocalSourcePath(file)
-				const scanChanged = await scanFile(file)
+				const scanChanged = isScanPath(file) ? await scanFile(file) : false
 
 				/**
 				 * Инвалидирует виртуальный модуль и выводит предупреждение о динамических именах.
@@ -433,12 +445,18 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		 * Обрабатывает изменение файла в dev-режиме.
 		 *
 		 * @remarks
-		 * Пересканирует изменённый файл; если набор иконок изменился, инвалидирует
-		 * виртуальный модуль и возвращает пустой массив, отключая точечное HMR-обновление
+		 * Пересканирует изменённый файл только если он входит в `options.scan`.
+		 * Для чтения использует `context.read()`, чтобы избежать race condition при сохранении.
+		 * Если набор иконок изменился, инвалидирует виртуальный модуль и возвращает пустой
+		 * массив, отключая точечное HMR-обновление
 		 * затронутых модулей в пользу полной перезагрузки.
 		 */
 		async handleHotUpdate(context) {
-			const changed = await scanFile(context.file)
+			if (!isScanPath(context.file)) {
+				return
+			}
+
+			const changed = await scanFile(context.file, context.read)
 
 			if (!changed) {
 				return

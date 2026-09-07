@@ -9,9 +9,8 @@ import { Icon, type IconProps } from "./Icon.js"
  * @typeParam TCustomIcons - Реестр кастомных иконок (обычно `typeof appIcons`);
  * по умолчанию допускаются любые строковые имена
  *
- * @returns Компонент иконки с типобезопасным пропом `name`, включающим
- * иконки из compile-time virtual registry, runtime registry
- * и кастомные иконки приложения.
+ * @returns Компонент иконки с пропом `name`, тип которого выводится
+ * из ключей `TCustomIcons`. Если generic не передан, допускается любое строковое имя.
  *
  * @example
  * ```ts
@@ -27,17 +26,20 @@ import { Icon, type IconProps } from "./Icon.js"
  *
  * ```tsx
  * <IconProvider icons={appIcons}>
- *   <AppIcon name="User" />     // ✅ кастомная иконка из IconProvider
- *   <AppIcon name="Close" />    // ✅ из compile-time virtual registry
- *   <AppIcon name="Wrong" />    // ❌ ошибка TypeScript
+ *   <AppIcon name="User" />      // ✅ ключ из TAppIcons
+ *   <AppIcon name="Settings" />  // ✅ ключ из TAppIcons
+ *   <AppIcon name="Wrong" />     // ❌ ошибка TypeScript
  * </IconProvider>
  * ```
  *
  * @remarks
  * - Требует использования `IconProvider` для передачи реестра иконок в runtime
  * - Без `IconProvider` кастомные иконки не будут найдены
- * - Иконки разрешаются в порядке: `IconProvider` → runtime registry →
- *   `virtual:@dubium/icons-registry`
+ * - Runtime-разрешение по-прежнему выполняется в порядке:
+ *   `IconProvider` → runtime registry → `virtual:@dubium/icons-registry`
+ * - При явном `TCustomIcons` TypeScript ограничивает `name` только ключами этого реестра
+ * - Для произвольных compile-time/runtime имён используйте обычный `Icon`
+ *   либо `createIcon()` без конкретного generic
  * - Используется для улучшения DX (type safety + autocomplete)
  */
 export const createIcon = <TCustomIcons extends TIconRegistry = TIconRegistry>() => {
