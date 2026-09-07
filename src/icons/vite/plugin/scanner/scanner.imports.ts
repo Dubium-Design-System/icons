@@ -16,8 +16,10 @@ const VITE_IMPORT_ID = "@dubium/icons/vite"
  * @param character - Проверяемый символ
  * @returns `true`, если символ допустим внутри идентификатора
  */
-export const isIdentifierCharacter = (character: string | undefined): boolean =>
-	character !== undefined && /[A-Za-z0-9_$]/u.test(character)
+export const isIdentifierCharacter = ( character: string | undefined ): boolean => {
+	return character !== undefined && /[A-Za-z0-9_$]/u.test(character)
+}
+
 
 /**
  * Проверяет границы ключевого слова в исходном коде.
@@ -48,8 +50,10 @@ const isKeywordAt = (source: string, index: number, keyword: string): boolean =>
  * @param value - Содержимое между `{` и `}`
  * @returns Строка без комментариев
  */
-const removeImportComments = (value: string): string =>
-	value.replace(/\/\*[\s\S]*?\*\//gu, " ").replace(/\/\/[^\r\n]*/gu, " ")
+const removeImportComments = ( value: string ): string => {
+	return value.replace(/\/\*[\s\S]*?\*\//gu, " ").replace(/\/\/[^\r\n]*/gu, " ")
+}
+
 
 /**
  * Пытается разобрать named import из `@dubium/icons/vite`.

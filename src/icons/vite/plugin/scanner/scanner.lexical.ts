@@ -46,8 +46,9 @@ const REGEX_PREFIX_CHARACTERS = new Set([
 	">",
 ])
 
-const isIdentifierCharacter = (character: string | undefined): boolean =>
-	character !== undefined && /[A-Za-z0-9_$]/u.test(character)
+const isIdentifierCharacter = ( character: string | undefined ): boolean => {
+	return character !== undefined && /[A-Za-z0-9_$]/u.test(character)
+}
 
 /**
  * Проверяет, может ли `/` в указанной позиции начинать RegExp literal.

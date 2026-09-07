@@ -289,4 +289,6 @@ export const parseStaticName = (openingTag: string): string | null => {
  * @param openingTag - Текст открывающего тега от `<` до `>`
  * @returns `true`, если атрибут `name` присутствует
  */
-export const hasNameAttribute = (openingTag: string): boolean => /\bname\s*=/u.test(openingTag)
+export const hasNameAttribute = ( openingTag: string ): boolean => {
+	return /\bname\s*=/u.test(openingTag)
+}

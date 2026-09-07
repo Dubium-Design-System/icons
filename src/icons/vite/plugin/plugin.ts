@@ -254,8 +254,10 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 * @param file - Абсолютный путь к файлу
 	 * @returns `true`, если файл принадлежит хотя бы одному локальному источнику
 	 */
-	const isLocalSourcePath = (file: string): boolean =>
-		localSourceOptions.some((source) => isPathInsideDirectory(resolve(root, source.path), file))
+	const isLocalSourcePath = ( file: string ): boolean => {
+		return localSourceOptions.some((source) => isPathInsideDirectory(resolve(root, source.path), file))
+	}
+
 
 	/**
 	 * Проверяет, входит ли файл хотя бы в одну директорию из `options.scan`.
@@ -263,8 +265,9 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 * @param file - Абсолютный путь к файлу
 	 * @returns `true`, если файл должен участвовать в сканировании приложения
 	 */
-	const isScanPath = (file: string): boolean =>
-		scanDirectories.some((directory) => isPathInsideDirectory(resolve(root, directory), file))
+	const isScanPath = ( file: string ): boolean => {
+		return scanDirectories.some((directory) => isPathInsideDirectory(resolve(root, directory), file))
+	}
 
 	/**
 	 * Инвалидирует виртуальный модуль реестра и запрашивает полную перезагрузку страницы.
