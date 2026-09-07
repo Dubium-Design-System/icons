@@ -57,9 +57,6 @@ export interface IconProps<TCustomIcons extends TIconRegistry = TIconRegistry> {
 	 */
 	name: TIconName<TCustomIcons>
 
-	/** Обработчик клика по контейнеру иконки. */
-	onClick?: VoidFunction
-
 	/** Размер контейнера, используется и для ширины, и для высоты. */
 	size?: number
 
@@ -82,6 +79,9 @@ export interface IconProps<TCustomIcons extends TIconRegistry = TIconRegistry> {
  * текущим loader. Это предотвращает кратковременный рендер предыдущей
  * иконки при изменении `name`.
  *
+ * Если `ariaLabel` не передан, иконка считается декоративной
+ * и скрывается от accessibility tree.
+ *
  * @typeParam TCustomIcons - Реестр кастомных иконок; по умолчанию допускаются
  * любые строковые имена.
  */
@@ -93,7 +93,6 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TIconRegistry>({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor = "var(--icon-secondary-color, currentColor)",
 	deg = 0,
-	onClick: handleOnClick,
 	ariaLabel,
 }: IconProps<TCustomIcons>) => {
 	const { icons } = useIconContext<TCustomIcons>()
@@ -208,7 +207,6 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TIconRegistry>({
 		return (
 			<div
 				aria-hidden="true"
-				role="img"
 				style={{
 					...containerStyle,
 					visibility: "hidden",
@@ -220,8 +218,13 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TIconRegistry>({
 	const LoadedIconComponent = loadedIcon.Component
 
 	return (
-		<div aria-label={ariaLabel || iconName} onClick={handleOnClick} role="img" style={containerStyle}>
-			<LoadedIconComponent color={color} secondaryColor={secondaryColor} />
+		<div
+			aria-hidden={ariaLabel ? undefined : true}
+			aria-label={ariaLabel}
+			role={ariaLabel ? "img" : undefined}
+			style={containerStyle}
+		>
+			<LoadedIconComponent aria-hidden="true" color={color} focusable="false" secondaryColor={secondaryColor} />
 		</div>
 	)
 }

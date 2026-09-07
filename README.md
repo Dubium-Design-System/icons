@@ -82,7 +82,7 @@ return <Icon name={SearchIcon} />
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-import { dubiumIcons } from "@dubium/icons/vite"
+import { dubiumIcons } from "@dubium/icons/vite/plugin"
 
 export default defineConfig({
 	plugins: [dubiumIcons(), react()],
