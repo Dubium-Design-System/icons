@@ -46,7 +46,9 @@ export const normalizePath = (value: string): string => value.replaceAll("\\", "
 export const isPathInsideDirectory = (directory: string, path: string): boolean => {
 	const relativePath = relative(directory, path)
 
-	return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath))
+	const isInsideDirectory = relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath))
+
+	return isInsideDirectory
 }
 
 /**

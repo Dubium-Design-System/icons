@@ -1,3 +1,5 @@
+import { REGEX } from "./scanner.regex.js"
+
 /**
  * Ключевые слова, после которых `/` может начинать RegExp literal.
  *
@@ -46,28 +48,59 @@ const REGEX_PREFIX_CHARACTERS = new Set([
 	">",
 ])
 
-const isIdentifierCharacter = ( character: string | undefined ): boolean => {
-	return character !== undefined && /[A-Za-z0-9_$]/u.test(character)
+type TSourceState = "code" | "single-quote" | "double-quote" | "template" | "line-comment" | "block-comment"
+
+/**
+ * Контекст одного значимого символа исходного кода.
+ *
+ * @internal
+ */
+export interface ICodeWalkerContext {
+	/** Текущий символ. */
+	character: string
+
+	/** Индекс текущего символа в исходном тексте. */
+	index: number
+
+	/** Следующий символ, если он существует. */
+	nextCharacter: string | undefined
+
+	/**
+	 * Перемещает обход к указанному индексу.
+	 *
+	 * Полезно, когда visitor уже разобрал целую конструкцию и повторный
+	 * посимвольный обход её содержимого не нужен.
+	 */
+	skipTo: (index: number) => void
+}
+
+/**
+ * Проверяет, является ли символ пробельным.
+ *
+ * @internal
+ */
+export const isWhitespace = (character: string | undefined): boolean => {
+	return character !== undefined && REGEX.WHITESPACE.test(character)
+}
+
+/**
+ * Проверяет, может ли символ быть частью JS/JSX-идентификатора.
+ *
+ * @internal
+ */
+export const isIdentifierCharacter = (character: string | undefined): boolean => {
+	return character !== undefined && REGEX.IDENTIFIER.CHARACTER.test(character)
 }
 
 /**
  * Проверяет, может ли `/` в указанной позиции начинать RegExp literal.
- *
- * @remarks
- * JavaScript использует один и тот же символ для RegExp literal и деления.
- * Для сканера достаточно определить контекст начала выражения: начало файла,
- * оператор/разделитель либо ключевое слово вроде `return` или `throw`.
- *
- * @param source - Исходный текст
- * @param index - Индекс символа `/`
- * @returns `true`, если `/` может начинать RegExp literal
  *
  * @internal
  */
 const canStartRegexLiteral = (source: string, index: number): boolean => {
 	let cursor = index - 1
 
-	while (cursor >= 0 && /\s/u.test(source[cursor] ?? "")) {
+	while (cursor >= 0 && isWhitespace(source[cursor])) {
 		cursor -= 1
 	}
 
@@ -158,7 +191,7 @@ export const findRegexLiteralEnd = (source: string, startIndex: number): number 
 
 		let endIndex = index + 1
 
-		while (/[A-Za-z]/u.test(source[endIndex] ?? "")) {
+		while (REGEX.REGEX_FLAG.test(source[endIndex] ?? "")) {
 			endIndex += 1
 		}
 
@@ -166,4 +199,117 @@ export const findRegexLiteralEnd = (source: string, startIndex: number): number 
 	}
 
 	return null
+}
+
+/**
+ * Обходит только значимые позиции JavaScript/TypeScript-кода.
+ *
+ * @remarks
+ * Общая state-machine централизованно игнорирует содержимое комментариев,
+ * строк, template literals и RegExp literals. Visitor вызывается для обычного
+ * кода и для открывающей кавычки строки — это позволяет отдельным сканерам
+ * распознавать строковые ключи объектов, не дублируя lexer.
+ *
+ * Visitor может вызвать `skipTo(index)`, если уже разобрал конструкцию целиком.
+ * Тогда следующий вызов visitor произойдёт с указанного индекса.
+ *
+ * @param source - Исходный текст файла
+ * @param visitor - Обработчик значимых позиций
+ */
+export const walkCode = (source: string, visitor: (context: ICodeWalkerContext) => void): void => {
+	let state: TSourceState = "code"
+	let escaped = false
+
+	for (let index = 0; index < source.length; index += 1) {
+		const character = source[index]
+		const nextCharacter = source[index + 1]
+
+		if (state === "line-comment") {
+			if (character === "\n" || character === "\r") {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (state === "block-comment") {
+			if (character === "*" && nextCharacter === "/") {
+				state = "code"
+				index += 1
+			}
+
+			continue
+		}
+
+		if (state === "single-quote" || state === "double-quote" || state === "template") {
+			if (escaped) {
+				escaped = false
+				continue
+			}
+
+			if (character === "\\") {
+				escaped = true
+				continue
+			}
+
+			const closingCharacter = state === "single-quote" ? "'" : state === "double-quote" ? '"' : "`"
+
+			if (character === closingCharacter) {
+				state = "code"
+			}
+
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "/") {
+			state = "line-comment"
+			index += 1
+			continue
+		}
+
+		if (character === "/" && nextCharacter === "*") {
+			state = "block-comment"
+			index += 1
+			continue
+		}
+
+		if (character === "/") {
+			const regexEnd = findRegexLiteralEnd(source, index)
+
+			if (regexEnd !== null) {
+				index = regexEnd - 1
+				continue
+			}
+		}
+
+		let nextIndex: number | null = null
+
+		visitor({
+			character,
+			index,
+			nextCharacter,
+			skipTo: (targetIndex) => {
+				nextIndex = Math.max(index + 1, targetIndex)
+			},
+		})
+
+		if (nextIndex !== null) {
+			index = nextIndex - 1
+			continue
+		}
+
+		if (character === "'") {
+			state = "single-quote"
+			continue
+		}
+
+		if (character === '"') {
+			state = "double-quote"
+			continue
+		}
+
+		if (character === "`") {
+			state = "template"
+		}
+	}
 }

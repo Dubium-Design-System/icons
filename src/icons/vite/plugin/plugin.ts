@@ -151,10 +151,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 * @param file - Абсолютный путь к файлу
 	 * @returns `true`, если набор иконок или число динамических имён изменились
 	 */
-	const scanFile = async (
-		file: string,
-		readSource?: () => string | Promise<string>,
-	): Promise<boolean> => {
+	const scanFile = async (file: string, readSource?: () => string | Promise<string>): Promise<boolean> => {
 		const normalizedFile = normalizePath(file)
 
 		if (!DEFAULT_EXTENSIONS.has(extname(file).toLowerCase())) {
@@ -254,10 +251,9 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 * @param file - Абсолютный путь к файлу
 	 * @returns `true`, если файл принадлежит хотя бы одному локальному источнику
 	 */
-	const isLocalSourcePath = ( file: string ): boolean => {
+	const isLocalSourcePath = (file: string): boolean => {
 		return localSourceOptions.some((source) => isPathInsideDirectory(resolve(root, source.path), file))
 	}
-
 
 	/**
 	 * Проверяет, входит ли файл хотя бы в одну директорию из `options.scan`.
@@ -265,7 +261,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 * @param file - Абсолютный путь к файлу
 	 * @returns `true`, если файл должен участвовать в сканировании приложения
 	 */
-	const isScanPath = ( file: string ): boolean => {
+	const isScanPath = (file: string): boolean => {
 		return scanDirectories.some((directory) => isPathInsideDirectory(resolve(root, directory), file))
 	}
 

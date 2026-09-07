@@ -5,6 +5,6 @@
  */
 
 export { IconProvider } from "./IconProvider.js"
-export { useIconContext } from "./IconProvider.context.js"
+export { useIconContext } from "./useIconContext.js"
 
 export type { IIconContextValue, IIconProviderProps } from "./IconProvider.types.js"

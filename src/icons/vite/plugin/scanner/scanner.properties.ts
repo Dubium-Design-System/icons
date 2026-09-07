@@ -1,17 +1,7 @@
-import { findRegexLiteralEnd } from "./scanner.lexical.js"
-import { isIdentifierCharacter } from "./scanner.imports.js"
-import type { TSourceState } from "./scanner.types.js"
+import { isIdentifierCharacter, isWhitespace, walkCode } from "./scanner.lexical.js"
 
 /**
  * Пропускает пробельные символы и комментарии, начиная с указанного индекса.
- *
- * @remarks
- * Обрабатываются пробелы, табуляция, переносы строк, строчные комментарии `//`
- * и блочные комментарии. Функция останавливается на первом значимом символе.
- *
- * @param source - Исходный текст файла
- * @param startIndex - Индекс, с которого начинается пропуск
- * @returns Индекс первого значимого символа после пробелов и комментариев
  */
 const skipWhitespaceAndComments = (source: string, startIndex: number): number => {
 	let index = startIndex
@@ -20,7 +10,7 @@ const skipWhitespaceAndComments = (source: string, startIndex: number): number =
 		const character = source[index]
 		const nextCharacter = source[index + 1]
 
-		if (/\s/u.test(character)) {
+		if (isWhitespace(character)) {
 			index += 1
 			continue
 		}
@@ -58,16 +48,6 @@ const skipWhitespaceAndComments = (source: string, startIndex: number): number =
 
 /**
  * Читает строковый литерал в одинарных или двойных кавычках.
- *
- * @remarks
- * Экранирование через обратную косую черту учитывается, поэтому экранированная
- * кавычка не завершает строку. Возвращаемое значение обрезается по краям.
- * Если строка не закрыта или содержит перенос строки, возвращается `null`.
- *
- * @param source - Исходный текст файла
- * @param startIndex - Индекс открывающей кавычки
- * @returns Индекс символа после закрывающей кавычки и значение строки,
- * либо `null`, если строковый литерал невалиден
  */
 const readQuotedString = (source: string, startIndex: number): { endIndex: number; value: string } | null => {
 	const quote = source[startIndex]
@@ -111,16 +91,7 @@ const readQuotedString = (source: string, startIndex: number): { endIndex: numbe
 }
 
 /**
- * Проверяет, что по указанному индексу начинается имя свойства-идентификатора.
- *
- * @remarks
- * Имя должно быть окружено символами, не являющимися частью идентификатора:
- * `iconName` распознаётся как имя свойства, а `myIconName` — нет.
- *
- * @param source - Исходный текст файла
- * @param index - Индекс начала имени свойства
- * @param propertyName - Искомое имя свойства
- * @returns Индекс символа после имени свойства или `null`, если имя не совпало
+ * Проверяет имя свойства-идентификатора.
  */
 const matchIdentifierPropertyName = (source: string, index: number, propertyName: string): number | null => {
 	if (!source.startsWith(propertyName, index)) {
@@ -138,17 +109,7 @@ const matchIdentifierPropertyName = (source: string, index: number, propertyName
 }
 
 /**
- * Проверяет, что по указанному индексу начинается имя свойства в виде строкового литерала.
- *
- * @example
- *
- * Для свойства `iconName` фрагмент `"iconName": "User"` будет распознан,
- * а `"prefixIconName"` — нет.
- *
- * @param source - Исходный текст файла
- * @param index - Индекс открывающей кавычки
- * @param propertyName - Искомое имя свойства
- * @returns Индекс символа после закрывающей кавычки или `null`, если имя не совпало
+ * Проверяет имя свойства в виде строкового литерала.
  */
 const matchQuotedPropertyName = (source: string, index: number, propertyName: string): number | null => {
 	const parsed = readQuotedString(source, index)
@@ -161,20 +122,7 @@ const matchQuotedPropertyName = (source: string, index: number, propertyName: st
 }
 
 /**
- * Пытается распознать свойство с одним из указанных имён по заданному индексу.
- *
- * @remarks
- * Поддерживаются две формы записи имени свойства:
- * - идентификатор: `iconName: "User"`;
- * - строковый литерал: `"iconName": "User"` или `'iconName': 'User'`.
- *
- * Между именем и двоеточием, а также между двоеточием и значением допускаются
- * пробелы и комментарии. Значение обязательно должно быть непустой строкой.
- *
- * @param source - Исходный текст файла
- * @param index - Индекс начала имени свойства
- * @param propertyNames - Список искомых имён свойств
- * @returns Индекс конца значения и само значение, либо `null`, если свойство не распознано
+ * Пытается распознать свойство с одним из указанных имён.
  */
 const parsePropertyAt = (
 	source: string,
@@ -182,13 +130,11 @@ const parsePropertyAt = (
 	propertyNames: readonly string[],
 ): { endIndex: number; value: string } | null => {
 	for (const propertyName of propertyNames) {
-		let afterPropertyName: number | null = null
+		const isQuotedPropertyName = ["'", '"'].includes(source[index] ?? "")
 
-		if (source[index] === "'" || source[index] === '"') {
-			afterPropertyName = matchQuotedPropertyName(source, index, propertyName)
-		} else {
-			afterPropertyName = matchIdentifierPropertyName(source, index, propertyName)
-		}
+		const afterPropertyName = isQuotedPropertyName
+			? matchQuotedPropertyName(source, index, propertyName)
+			: matchIdentifierPropertyName(source, index, propertyName)
 
 		if (afterPropertyName === null) {
 			continue
@@ -221,142 +167,23 @@ const parsePropertyAt = (
  * Находит значения перечисленных свойств и добавляет их в множество имён иконок.
  *
  * @remarks
- * Обход выполняется лексически: содержимое строк, шаблонных строк и комментариев
- * игнорируется, поэтому `{"iconName": "Fake"}` внутри строки не попадёт в результат.
- * Каждое найденное непустое значение добавляется в переданное множество.
- *
- * @param source - Исходный текст файла
- * @param propertyNames - Список имён свойств, значения которых собираются
- * @param icons - Множество, в которое добавляются найденные имена иконок
- * @returns Ничего; результат накапливается в параметре `icons`
+ * Общий lexical walker игнорирует содержимое комментариев, строк,
+ * template literals и RegExp literals. Открывающая кавычка при этом доступна
+ * visitor-у, поэтому поддерживаются строковые ключи вида `"iconName": "User"`.
  */
 export const scanPropertyNames = (source: string, propertyNames: readonly string[], icons: Set<string>): void => {
 	if (propertyNames.length === 0) {
 		return
 	}
 
-	let state: TSourceState = "code"
-	let escaped = false
-
-	for (let index = 0; index < source.length; index += 1) {
-		const character = source[index]
-		const nextCharacter = source[index + 1]
-
-		if (state === "line-comment") {
-			if (character === "\n" || character === "\r") {
-				state = "code"
-			}
-
-			continue
-		}
-
-		if (state === "block-comment") {
-			if (character === "*" && nextCharacter === "/") {
-				state = "code"
-				index += 1
-			}
-
-			continue
-		}
-
-		if (state === "single-quote") {
-			if (escaped) {
-				escaped = false
-				continue
-			}
-
-			if (character === "\\") {
-				escaped = true
-				continue
-			}
-
-			if (character === "'") {
-				state = "code"
-			}
-
-			continue
-		}
-
-		if (state === "double-quote") {
-			if (escaped) {
-				escaped = false
-				continue
-			}
-
-			if (character === "\\") {
-				escaped = true
-				continue
-			}
-
-			if (character === '"') {
-				state = "code"
-			}
-
-			continue
-		}
-
-		if (state === "template") {
-			if (escaped) {
-				escaped = false
-				continue
-			}
-
-			if (character === "\\") {
-				escaped = true
-				continue
-			}
-
-			if (character === "`") {
-				state = "code"
-			}
-
-			continue
-		}
-
-		if (character === "/" && nextCharacter === "/") {
-			state = "line-comment"
-			index += 1
-			continue
-		}
-
-		if (character === "/" && nextCharacter === "*") {
-			state = "block-comment"
-			index += 1
-			continue
-		}
-
-		if (character === "/") {
-			const regexEnd = findRegexLiteralEnd(source, index)
-
-			if (regexEnd !== null) {
-				index = regexEnd - 1
-				continue
-			}
-		}
-
-		if (character === "'" || character === '"') {
-			const property = parsePropertyAt(source, index, propertyNames)
-
-			if (property) {
-				icons.add(property.value)
-				index = property.endIndex - 1
-				continue
-			}
-
-			state = character === "'" ? "single-quote" : "double-quote"
-			continue
-		}
-
-		if (character === "`") {
-			state = "template"
-			continue
-		}
-
+	walkCode(source, ({ index, skipTo }) => {
 		const property = parsePropertyAt(source, index, propertyNames)
 
-		if (property) {
-			icons.add(property.value)
-			index = property.endIndex - 1
+		if (!property) {
+			return
 		}
-	}
+
+		icons.add(property.value)
+		skipTo(property.endIndex)
+	})
 }
