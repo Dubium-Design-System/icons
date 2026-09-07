@@ -1413,3 +1413,24 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 }
 
 export default dubiumIcons
+
+export { createIcon, Icon, type IconProps } from "./icon/index.js"
+export { IconProvider, useIconContext } from "./provider/index.js"
+export {
+	getRuntimeIconLoader,
+	getRuntimeIconsVersion,
+	registerIcons,
+	removeIconOwner,
+	subscribeRuntimeIcons,
+} from "./runtime/index.js"
+
+export type {
+	IIconComponentProps,
+	TEmptyIconRegistry,
+	TIcon,
+	TIconLoader,
+	TIconModule,
+	TIconName,
+	TIconRegistry,
+} from "./icon/index.js"
+export type { IIconContextValue, IIconProviderProps } from "./provider/index.js"

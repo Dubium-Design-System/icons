@@ -1,4 +1,4 @@
-import type { TEmptyIconRegistry, TIconRegistry } from "./Icon.types.js"
+import type { TIconRegistry } from "./Icon.types.js"
 
 import { Icon, type IconProps } from "./Icon.js"
 
@@ -6,7 +6,8 @@ import { Icon, type IconProps } from "./Icon.js"
  * Создаёт типизированную обёртку над компонентом `Icon`
  * с поддержкой автодополнения (autocomplete) для кастомных иконок.
  *
- * @typeParam TCustomIcons - Реестр кастомных иконок (обычно `typeof appIcons`)
+ * @typeParam TCustomIcons - Реестр кастомных иконок (обычно `typeof appIcons`);
+ * по умолчанию допускаются любые строковые имена
  *
  * @returns Компонент иконки с типобезопасным пропом `name`, включающим
  * иконки из compile-time virtual registry, runtime registry
@@ -39,7 +40,7 @@ import { Icon, type IconProps } from "./Icon.js"
  *   `virtual:@dubium/icons-registry`
  * - Используется для улучшения DX (type safety + autocomplete)
  */
-export const createIcon = <TCustomIcons extends TIconRegistry = TEmptyIconRegistry>() => {
+export const createIcon = <TCustomIcons extends TIconRegistry = TIconRegistry>() => {
 	const TypedIcon = (props: IconProps<TCustomIcons>) => {
 		return <Icon<TCustomIcons> {...props} />
 	}

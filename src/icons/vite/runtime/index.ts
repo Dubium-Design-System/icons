@@ -11,5 +11,6 @@ export {
 	getRuntimeIconLoader,
 	getRuntimeIconsVersion,
 	registerIcons,
+	removeIconOwner,
 	subscribeRuntimeIcons,
 } from "./IconRuntime.registry.js"

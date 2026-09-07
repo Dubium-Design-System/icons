@@ -194,6 +194,26 @@ export const registerIcons = (owner: string, icons: TIconRegistry): VoidFunction
 }
 
 /**
+ * Удаляет текущую регистрацию владельца из runtime-реестра.
+ *
+ * @remarks
+ * Удаляет все иконки, зарегистрированные указанным владельцем, и уведомляет
+ * подписчиков об изменении реестра.
+ *
+ * @param owner - Идентификатор владельца реестра
+ * @returns `true`, если регистрация существовала и была удалена
+ */
+export const removeIconOwner = (owner: string): boolean => {
+	const removed = removeOwner(owner)
+
+	if (removed) {
+		notify()
+	}
+
+	return removed
+}
+
+/**
  * Возвращает ленивый загрузчик иконки по имени.
  *
  * @remarks

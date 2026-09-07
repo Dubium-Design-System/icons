@@ -2,7 +2,7 @@ import { memo, type MemoExoticComponent, useEffect, useMemo, useState, useSyncEx
 
 import { iconRegistry } from "virtual:@dubium/icons-registry"
 
-import type { TEmptyIconRegistry, TIcon, TIconLoader, TIconName, TIconRegistry } from "./Icon.types.js"
+import type { TIcon, TIconLoader, TIconName, TIconRegistry } from "./Icon.types.js"
 
 import { useIconContext } from "../provider/index.js"
 import { getRuntimeIconLoader, getRuntimeIconsVersion, subscribeRuntimeIcons } from "../runtime/index.js"
@@ -17,27 +17,52 @@ import { getRuntimeIconLoader, getRuntimeIconsVersion, subscribeRuntimeIcons } f
 const iconCache = new Map<TIconLoader, TIcon>()
 
 /**
+ * Загруженный компонент иконки вместе с loader, из которого он получен.
+ *
+ * @internal
+ */
+interface ILoadedIcon {
+	/** Компонент иконки для рендера. */
+	Component: TIcon
+
+	/** Loader, из которого был получен компонент. */
+	loader: TIconLoader
+}
+
+/**
  * Свойства компонента {@link Icon}.
  *
- * @typeParam TCustomIcons - Реестр кастомных иконок, добавляемых к встроенным
+ * @typeParam TCustomIcons - Реестр кастомных иконок приложения;
+ * по умолчанию допускаются любые строковые имена.
  */
-export interface IconProps<TCustomIcons extends TIconRegistry = TEmptyIconRegistry> {
+export interface IconProps<TCustomIcons extends TIconRegistry = TIconRegistry> {
 	/** Доступное имя иконки (aria-label). */
 	ariaLabel?: string
+
 	/** Основной цвет иконки. */
 	color?: string
+
 	/** Вторичный цвет для двухцветных иконок. */
 	secondaryColor?: string
+
 	/** Угол поворота иконки в градусах. */
 	deg?: number
+
 	/** Высота контейнера; переопределяет `size` для высоты. */
 	height?: number
-	/** Имя иконки: встроенное или из реестра кастомных иконок. */
+
+	/**
+	 * Имя иконки: из compile-time virtual registry, runtime registry
+	 * или реестра кастомных иконок приложения.
+	 */
 	name: TIconName<TCustomIcons>
+
 	/** Обработчик клика по контейнеру иконки. */
 	onClick?: VoidFunction
+
 	/** Размер контейнера, используется и для ширины, и для высоты. */
 	size?: number
+
 	/** Ширина контейнера; переопределяет `size` для ширины. */
 	width?: number
 }
@@ -47,15 +72,20 @@ export interface IconProps<TCustomIcons extends TIconRegistry = TEmptyIconRegist
  *
  * @remarks
  * Иконка разрешается по следующему порядку:
- * 1. `IconProvider` (кастомный реестр приложения);
- * 2. runtime registry (MF / EventBus);
+ * 1. `IconProvider` — кастомный реестр приложения;
+ * 2. runtime registry — MF / EventBus;
  * 3. compile-time registry текущего Vite-приложения.
  *
  * Загруженные компоненты кэшируются в {@link iconCache}.
  *
- * @typeParam TCustomIcons - Реестр кастомных иконок
+ * Компонент отображается только в том случае, если он был загружен
+ * текущим loader. Это предотвращает кратковременный рендер предыдущей
+ * иконки при изменении `name`.
+ *
+ * @typeParam TCustomIcons - Реестр кастомных иконок; по умолчанию допускаются
+ * любые строковые имена.
  */
-const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegistry>({
+const IconComponentBase = <TCustomIcons extends TIconRegistry = TIconRegistry>({
 	name,
 	size = 24,
 	width: propWidth,
@@ -67,15 +97,28 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 	ariaLabel,
 }: IconProps<TCustomIcons>) => {
 	const { icons } = useIconContext<TCustomIcons>()
+
 	const iconName = String(name)
 
 	useSyncExternalStore(subscribeRuntimeIcons, getRuntimeIconsVersion, getRuntimeIconsVersion)
 
 	const currentLoader = icons[name] ?? getRuntimeIconLoader(iconName) ?? iconRegistry[iconName]
 
-	const [IconComponent, setIconComponent] = useState<null | TIcon>(() =>
-		currentLoader ? (iconCache.get(currentLoader) ?? null) : null,
-	)
+	const [loadedIcon, setLoadedIcon] = useState<ILoadedIcon | null>(() => {
+		if (!currentLoader) {
+			return null
+		}
+
+		const cachedIcon = iconCache.get(currentLoader)
+
+		return cachedIcon
+			? {
+					Component: cachedIcon,
+					loader: currentLoader,
+				}
+			: null
+	})
+
 	const [isLoading, setIsLoading] = useState(false)
 
 	const computedWidth = propWidth ?? size
@@ -95,11 +138,11 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 
 	useEffect(() => {
 		let ignore = false
-		const importIcon = icons[name] ?? getRuntimeIconLoader(iconName) ?? iconRegistry[iconName]
 
-		if (!importIcon) {
+		if (!currentLoader) {
 			setIsLoading(false)
-			setIconComponent(null)
+			setLoadedIcon(null)
+
 			console.warn(`Иконка "${iconName}" не найдена в IconProvider, runtime registry или compile-time registry.`)
 
 			return () => {
@@ -107,11 +150,14 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 			}
 		}
 
-		const cachedIcon = iconCache.get(importIcon)
+		const cachedIcon = iconCache.get(currentLoader)
 
 		if (cachedIcon) {
 			setIsLoading(false)
-			setIconComponent(() => cachedIcon)
+			setLoadedIcon({
+				Component: cachedIcon,
+				loader: currentLoader,
+			})
 
 			return () => {
 				ignore = true
@@ -119,9 +165,9 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 		}
 
 		setIsLoading(true)
-		setIconComponent(null)
+		setLoadedIcon(null)
 
-		void importIcon()
+		void currentLoader()
 			.then((module) => {
 				if (ignore) {
 					return
@@ -129,8 +175,12 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 
 				const Component = module.default
 
-				iconCache.set(importIcon, Component)
-				setIconComponent(() => Component)
+				iconCache.set(currentLoader, Component)
+
+				setLoadedIcon({
+					Component,
+					loader: currentLoader,
+				})
 			})
 			.catch((error: unknown) => {
 				if (ignore) {
@@ -138,7 +188,8 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 				}
 
 				console.error(`Ошибка загрузки иконки "${iconName}":`, error)
-				setIconComponent(null)
+
+				setLoadedIcon(null)
 			})
 			.finally(() => {
 				if (!ignore) {
@@ -149,15 +200,28 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 		return () => {
 			ignore = true
 		}
-	}, [iconName, icons, name, currentLoader])
+	}, [currentLoader, iconName])
 
-	if (isLoading || !IconComponent) {
-		return <div aria-hidden="true" role="img" style={{ ...containerStyle, visibility: "hidden" }} />
+	const isCurrentIconReady = loadedIcon !== null && loadedIcon.loader === currentLoader
+
+	if (isLoading || !isCurrentIconReady) {
+		return (
+			<div
+				aria-hidden="true"
+				role="img"
+				style={{
+					...containerStyle,
+					visibility: "hidden",
+				}}
+			/>
+		)
 	}
+
+	const LoadedIconComponent = loadedIcon.Component
 
 	return (
 		<div aria-label={ariaLabel || iconName} onClick={handleOnClick} role="img" style={containerStyle}>
-			<IconComponent color={color} secondaryColor={secondaryColor} />
+			<LoadedIconComponent color={color} secondaryColor={secondaryColor} />
 		</div>
 	)
 }

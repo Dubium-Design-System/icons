@@ -61,10 +61,12 @@ export type TIconRegistry = Readonly<Record<string, TIconLoader>>
 /**
  * Тип допустимых имён иконок.
  *
- * Объединяет:
- * - кастомные иконки (`TCustomIcons`)
+ * По умолчанию (`TIconRegistry`) допускает любую строку — точный перечень
+ * имён выводится при передаче конкретного реестра иконок.
  *
- * @typeParam TCustomIcons - Реестр кастомных иконок
+ * @typeParam TIcons - Реестр иконок, ключи которого считаются допустимыми именами
+ *
+ * @default TIconRegistry
  *
  * @example
  * ```ts
@@ -72,6 +74,6 @@ export type TIconRegistry = Readonly<Record<string, TIconLoader>>
  * // "Close" | "User" | "Settings"
  * ```
  */
-export type TIconName<TIcons extends TIconRegistry> = Extract<keyof TIcons, string>
+export type TIconName<TIcons extends TIconRegistry = TIconRegistry> = Extract<keyof TIcons, string>
 
 export type { IIconComponentProps }

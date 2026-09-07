@@ -8,6 +8,10 @@
 	"type": "module",
 	"sideEffects": false,
 	"exports": {
+		"./icon": {
+			"types": "./dist/icon/index.d.ts",
+			"import": "./dist/icon/index.js"
+		},
 		"./icons": {
 			"types": "./dist/collection/index.d.ts",
 			"import": "./dist/collection/index.js"
