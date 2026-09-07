@@ -1,6 +1,6 @@
-import { createContext} from "react"
+import { createContext } from "react"
 
-import type {  TIconRegistry } from "../icon/index.js"
+import type { TIconRegistry } from "../icon/index.js"
 import type { IIconContextValue } from "./IconProvider.types.js"
 
 /**

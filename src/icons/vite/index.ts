@@ -1,14 +1,11 @@
 /**
  * Публичный API иконок для Vite.
  *
- * @remarks
- * Экспортирует компонент `Icon` с ленивой загрузкой, фабрику `createIcon`,
- * провайдер `IconProvider`, хук `useIconContext`, функции runtime-реестра
- * (`registerIcons`, `removeIconOwner` и другие) и все связанные типы.
+ * Источники иконок:
  *
- * Источником иконок служит compile-time virtual registry
- * (`virtual:@dubium/icons-registry`), который генерирует плагин `dubiumIcons`
- * только для используемых иконок, а также runtime registry для динамических имён.
+ * 1. IconProvider;
+ * 2. runtime registry;
+ * 3. compile-time virtual registry.
  */
 
 export { createIcon, Icon, type IconProps } from "./icon/index.js"
@@ -31,6 +28,7 @@ export type {
 	TIconModule,
 	TIconName,
 	TIconRegistry,
+	TPackageIconName,
 } from "./icon/index.js"
 
 export type { IIconContextValue, IIconProviderProps } from "./provider/index.js"

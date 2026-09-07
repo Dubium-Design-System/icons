@@ -2,7 +2,7 @@ import { memo, type MemoExoticComponent, useEffect, useMemo, useState, useSyncEx
 
 import { iconRegistry } from "virtual:@dubium/icons-registry"
 
-import type { TIcon, TIconLoader, TIconName, TIconRegistry } from "./Icon.types.js"
+import type { TEmptyIconRegistry, TIcon, TIconLoader, TIconName, TIconRegistry } from "./Icon.types.js"
 
 import { useIconContext } from "../provider/index.js"
 import { getRuntimeIconLoader, getRuntimeIconsVersion, subscribeRuntimeIcons } from "../runtime/index.js"
@@ -10,82 +10,90 @@ import { getRuntimeIconLoader, getRuntimeIconsVersion, subscribeRuntimeIcons } f
 /**
  * Кэш уже загруженных React-компонентов.
  *
- * @remarks
- * Ключом является loader, поэтому разные источники с одинаковым именем
- * не конфликтуют в кэше.
+ * Ключом является loader, поэтому разные источники
+ * с одинаковым именем не конфликтуют между собой.
  */
 const iconCache = new Map<TIconLoader, TIcon>()
 
 /**
- * Загруженный компонент иконки вместе с loader, из которого он получен.
- *
- * @internal
+ * Загруженный компонент иконки вместе с loader,
+ * из которого он был получен.
  */
 interface ILoadedIcon {
-	/** Компонент иконки для рендера. */
 	Component: TIcon
-
-	/** Loader, из которого был получен компонент. */
 	loader: TIconLoader
 }
 
 /**
- * Свойства компонента {@link Icon}.
+ * Props компонента Icon.
  *
- * @typeParam TCustomIcons - Реестр кастомных иконок приложения;
- * по умолчанию допускаются любые строковые имена.
+ * По умолчанию `name` содержит autocomplete
+ * всех встроенных иконок @sg/icons.
+ *
+ * Если передан custom registry, его ключи также
+ * добавляются в autocomplete.
  */
-export interface IconProps<TCustomIcons extends TIconRegistry = TIconRegistry> {
-	/** Доступное имя иконки (aria-label). */
+export interface IconProps<TCustomIcons extends TIconRegistry = TEmptyIconRegistry> {
+	/**
+	 * Accessible label.
+	 *
+	 * Если не передан, иконка считается декоративной.
+	 */
 	ariaLabel?: string
 
-	/** Основной цвет иконки. */
+	/**
+	 * Основной цвет.
+	 */
 	color?: string
 
-	/** Вторичный цвет для двухцветных иконок. */
+	/**
+	 * Вторичный цвет для двухцветных иконок.
+	 */
 	secondaryColor?: string
 
-	/** Угол поворота иконки в градусах. */
+	/**
+	 * Поворот в градусах.
+	 */
 	deg?: number
 
-	/** Высота контейнера; переопределяет `size` для высоты. */
+	/**
+	 * Высота.
+	 *
+	 * Имеет приоритет над size.
+	 */
 	height?: number
 
 	/**
-	 * Имя иконки: из compile-time virtual registry, runtime registry
-	 * или реестра кастомных иконок приложения.
+	 * Имя иконки.
+	 *
+	 * VS Code должен предлагать все имена,
+	 * экспортируемые из collection/index.ts.
 	 */
 	name: TIconName<TCustomIcons>
 
-	/** Размер контейнера, используется и для ширины, и для высоты. */
+	/**
+	 * Размер иконки.
+	 */
 	size?: number
 
-	/** Ширина контейнера; переопределяет `size` для ширины. */
+	/**
+	 * Ширина.
+	 *
+	 * Имеет приоритет над size.
+	 */
 	width?: number
 }
 
 /**
- * Базовый компонент иконки с поддержкой ленивой загрузки.
+ * Базовый компонент Icon.
  *
- * @remarks
- * Иконка разрешается по следующему порядку:
- * 1. `IconProvider` — кастомный реестр приложения;
- * 2. runtime registry — MF / EventBus;
- * 3. compile-time registry текущего Vite-приложения.
+ * Иконка разрешается в следующем порядке:
  *
- * Загруженные компоненты кэшируются в {@link iconCache}.
- *
- * Компонент отображается только в том случае, если он был загружен
- * текущим loader. Это предотвращает кратковременный рендер предыдущей
- * иконки при изменении `name`.
- *
- * Если `ariaLabel` не передан, иконка считается декоративной
- * и скрывается от accessibility tree.
- *
- * @typeParam TCustomIcons - Реестр кастомных иконок; по умолчанию допускаются
- * любые строковые имена.
+ * 1. IconProvider;
+ * 2. runtime registry;
+ * 3. compile-time virtual registry.
  */
-const IconComponentBase = <TCustomIcons extends TIconRegistry = TIconRegistry>({
+const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegistry>({
 	name,
 	size = 24,
 	width: propWidth,
@@ -153,6 +161,7 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TIconRegistry>({
 
 		if (cachedIcon) {
 			setIsLoading(false)
+
 			setLoadedIcon({
 				Component: cachedIcon,
 				loader: currentLoader,

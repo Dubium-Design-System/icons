@@ -1,9 +1,5 @@
 /**
- * Публичный API модуля иконок для Vite.
- *
- * Экспортирует компонент `Icon`, фабрику `createIcon` и связанные типы
- * с поддержкой ленивой загрузки иконок через динамический `import()`
- * и compile-time virtual registry (`virtual:@dubium/icons-registry`).
+ * Публичный API Vite Icon.
  */
 
 export { Icon, type IconProps } from "./Icon.js"
@@ -18,4 +14,5 @@ export type {
 	TIconModule,
 	TIconName,
 	TIconRegistry,
+	TPackageIconName,
 } from "./Icon.types.js"

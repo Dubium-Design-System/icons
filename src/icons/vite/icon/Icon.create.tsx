@@ -1,48 +1,37 @@
-import type { TIconRegistry } from "./Icon.types.js"
+import type { TEmptyIconRegistry, TIconRegistry } from "./Icon.types.js"
 
 import { Icon, type IconProps } from "./Icon.js"
 
 /**
- * Создаёт типизированную обёртку над компонентом `Icon`
- * с поддержкой автодополнения (autocomplete) для кастомных иконок.
+ * Создаёт типизированную версию Icon
+ * для кастомного registry.
  *
- * @typeParam TCustomIcons - Реестр кастомных иконок (обычно `typeof appIcons`);
- * по умолчанию допускаются любые строковые имена
+ * При этом autocomplete содержит:
  *
- * @returns Компонент иконки с пропом `name`, тип которого выводится
- * из ключей `TCustomIcons`. Если generic не передан, допускается любое строковое имя.
+ * - все встроенные иконки @sg/icons;
+ * - все ключи TCustomIcons.
  *
  * @example
+ *
  * ```ts
  * const appIcons = {
- *   User: () => import("./UserIcon"),
- *   Settings: () => import("./SettingsIcon"),
- * } as const;
+ *   CompanyLogo: () => import("./CompanyLogoIcon"),
+ *   SpecialDocument: () => import("./SpecialDocumentIcon"),
+ * } as const
  *
- * type TAppIcons = typeof appIcons;
- *
- * const AppIcon = createIcon<TAppIcons>();
+ * const AppIcon = createIcon<typeof appIcons>()
  * ```
+ *
+ * После этого:
  *
  * ```tsx
- * <IconProvider icons={appIcons}>
- *   <AppIcon name="User" />      // ✅ ключ из TAppIcons
- *   <AppIcon name="Settings" />  // ✅ ключ из TAppIcons
- *   <AppIcon name="Wrong" />     // ❌ ошибка TypeScript
- * </IconProvider>
+ * <AppIcon name="Abacus" />
+ * <AppIcon name="CompanyLogo" />
  * ```
  *
- * @remarks
- * - Требует использования `IconProvider` для передачи реестра иконок в runtime
- * - Без `IconProvider` кастомные иконки не будут найдены
- * - Runtime-разрешение по-прежнему выполняется в порядке:
- *   `IconProvider` → runtime registry → `virtual:@dubium/icons-registry`
- * - При явном `TCustomIcons` TypeScript ограничивает `name` только ключами этого реестра
- * - Для произвольных compile-time/runtime имён используйте обычный `Icon`
- *   либо `createIcon()` без конкретного generic
- * - Используется для улучшения DX (type safety + autocomplete)
+ * оба варианта будут типизированы.
  */
-export const createIcon = <TCustomIcons extends TIconRegistry = TIconRegistry>() => {
+export const createIcon = <TCustomIcons extends TIconRegistry = TEmptyIconRegistry>() => {
 	const TypedIcon = (props: IconProps<TCustomIcons>) => {
 		return <Icon<TCustomIcons> {...props} />
 	}
