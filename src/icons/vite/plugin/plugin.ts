@@ -17,6 +17,16 @@ import { createVirtualModuleSource, RESOLVED_VIRTUAL_MODULE_ID, VIRTUAL_MODULE_I
 import type { DubiumIconsPluginOptions, TDubiumIconSource } from "./plugin.types.js"
 
 /**
+ * Поля, которые scanner автоматически считает ссылками на иконки,
+ * когда включена публикация в runtime registry.
+ *
+ * @remarks
+ * `iconName` выбран специально: поле достаточно специфичное и не должно
+ * конфликтовать с большинством обычных объектов приложения.
+ */
+const DEFAULT_RUNTIME_PROPERTY_NAMES = ["iconName"] as const
+
+/**
  * Проверяет эквивалентность двух множеств строк.
  *
  * @remarks
@@ -42,27 +52,43 @@ const setsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string>): boole
 }
 
 /**
+ * Удаляет query/hash-часть из Vite module id.
+ *
+ * @param id - Идентификатор модуля Vite
+ * @returns Путь к исходному файлу без служебных параметров
+ */
+const getModuleFilePath = (id: string): string => {
+	const queryIndex = id.indexOf("?")
+	const hashIndex = id.indexOf("#")
+
+	let endIndex = id.length
+
+	if (queryIndex !== -1) {
+		endIndex = Math.min(endIndex, queryIndex)
+	}
+
+	if (hashIndex !== -1) {
+		endIndex = Math.min(endIndex, hashIndex)
+	}
+
+	return id.slice(0, endIndex)
+}
+
+/**
  * Плагин Vite для автоматического обнаружения иконок `@dubium/icons`.
  *
  * @remarks
  * Плагин сканирует исходники проекта, находит статические использования
- * Vite-компонента `Icon` (в виде JSX-тегов и строковых конфигураций) и генерирует
+ * Vite-компонента `Icon` и строковые конфигурации, после чего генерирует
  * виртуальный модуль `virtual:@dubium/icons-registry` с ленивыми загрузчиками
  * только для используемых иконок.
  *
- * По умолчанию компонентом считается любой JSX-тег `<Icon>`, имя которого
- * импортировано из `@dubium/icons/vite`. Набор имён можно переопределить через
- * `options.componentNames`, а список свойств, значения которых трактуются как имена
- * иконок, — через `options.propertyNames`. Теги прочих компонентов, например
- * `<IconButton>`, игнорируются.
+ * Дополнительно:
  *
- * Сканируются все файлы директории `src` (настраивается через `options.scan`).
- * Источником иконок по умолчанию является пакет `@dubium/icons` с подстановкой
- * имени в `importPattern`; локальные каталоги SVG-файлов подключаются через
- * `options.sources`.
+ * - `include` позволяет явно добавить динамические имена в compile-time registry;
+ * - `runtimeRegistry` публикует итоговый compile-time registry в общий runtime registry.
  *
- * Динамические имена вида `<Icon name={expression}>` не могут быть разрешены
- * на этапе сборки — о них выводится предупреждение с указанием файлов.
+ * При `runtimeRegistry` поле `iconName` сканируется автоматически.
  *
  * @param options - Опции плагина
  * @returns Объект плагина Vite
@@ -70,19 +96,46 @@ const setsEqual = (left: ReadonlySet<string>, right: ReadonlySet<string>): boole
  * @example
  *
  * ```ts
- * // vite.config.ts
- * import { defineConfig } from "vite"
- * import { dubiumIcons } from "@dubium/icons/vite/plugin"
+ * // Host: динамические имена заранее известны Host.
+ * dubiumIcons({
+ * 	include: ["AiOutline", "AlertCircleOutline"],
+ * })
+ * ```
  *
- * export default defineConfig({
- *   plugins: [dubiumIcons()],
+ * @example
+ *
+ * ```ts
+ * // Remote: имена автоматически публикуются в runtime registry.
+ * dubiumIcons({
+ * 	runtimeRegistry: "profile-mf",
  * })
  * ```
  */
 export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	const componentNames = options.componentNames ? [...options.componentNames] : []
 
-	const propertyNames = options.propertyNames ? [...options.propertyNames] : []
+	const runtimeRegistryOwner = options.runtimeRegistry?.trim()
+
+	if (options.runtimeRegistry !== undefined && !runtimeRegistryOwner) {
+		throw new Error(
+			"[@dubium/icons] options.runtimeRegistry должен содержать непустой уникальный owner микрофронтенда.",
+		)
+	}
+
+	const propertyNames = [
+		...new Set([...(runtimeRegistryOwner ? DEFAULT_RUNTIME_PROPERTY_NAMES : []), ...(options.propertyNames ?? [])]),
+	]
+
+	const includedIcons = [...new Set(options.include ?? [])]
+
+	for (const name of includedIcons) {
+		if (!name.trim() || name !== name.trim()) {
+			throw new Error(
+				`[@dubium/icons] Некорректное имя в options.include: ${JSON.stringify(name)}.\n` +
+					"Имя иконки должно быть непустой строкой без пробелов по краям.",
+			)
+		}
+	}
 
 	const scanDirectories = options.scan ? [...options.scan] : ["src"]
 
@@ -105,7 +158,14 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		(source): source is Extract<TDubiumIconSource, { type: "package" }> => source.type === "package",
 	)
 
+	/**
+	 * Статические иконки, найденные scanner-ом, сгруппированные по исходным файлам.
+	 */
 	const fileIcons = new Map<string, Set<string>>()
+
+	/**
+	 * Количество динамических `<Icon name={...}>` по исходным файлам.
+	 */
 	const dynamicFiles = new Map<string, number>()
 
 	let localCatalogs: ILocalSourceCatalog[] = []
@@ -121,21 +181,35 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	let lastDynamicWarningSignature = ""
 
 	/**
-	 * Собирает отсортированный список всех статических имён иконок из отсканированных файлов.
+	 * Собирает отсортированный список имён, найденных scanner-ом.
 	 *
-	 * @remarks
-	 * Имена объединяются из кэша `fileIcons` без дубликатов и сортируются
-	 * в порядке `localeCompare`.
-	 *
-	 * @returns Уникальные имена иконок, отсортированные по алфавиту
+	 * @returns Уникальные scanner-имена, отсортированные по алфавиту
 	 */
-	const getAllIcons = (): string[] => {
+	const getScannedIcons = (): string[] => {
 		const icons = new Set<string>()
 
 		for (const names of fileIcons.values()) {
 			for (const name of names) {
 				icons.add(name)
 			}
+		}
+
+		return [...icons].sort((left, right) => left.localeCompare(right))
+	}
+
+	/**
+	 * Собирает итоговый список имён для compile-time registry.
+	 *
+	 * @remarks
+	 * Итоговый registry состоит из scanner-result и `options.include`.
+	 *
+	 * @returns Уникальные имена, отсортированные по алфавиту
+	 */
+	const getAllIcons = (): string[] => {
+		const icons = new Set(getScannedIcons())
+
+		for (const name of includedIcons) {
+			icons.add(name)
 		}
 
 		return [...icons].sort((left, right) => left.localeCompare(right))
@@ -149,6 +223,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	 * удаляются из кэшей. Новый результат сравнивается с предыдущим состоянием.
 	 *
 	 * @param file - Абсолютный путь к файлу
+	 * @param readSource - Опциональная функция чтения содержимого файла
 	 * @returns `true`, если набор иконок или число динамических имён изменились
 	 */
 	const scanFile = async (file: string, readSource?: () => string | Promise<string>): Promise<boolean> => {
@@ -191,15 +266,7 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	/**
 	 * Сканирует все директории из `options.scan` и наполняет кэши иконок.
 	 *
-	 * @remarks
-	 * Перед сканированием кэши очищаются. Недоступная директория не прерывает работу —
-	 * вместо этого через `pluginContext.warn` выдаётся предупреждение, после чего плагин
-	 * переходит к следующей директории.
-	 *
 	 * @param pluginContext - Контекст хука Vite (опционально)
-	 * @param pluginContext.addWatchFile - Регистрирует файл для отслеживания изменений
-	 * @param pluginContext.warn - Выводит предупреждение в лог
-	 * @returns Промис, завершающийся после обработки всех директорий
 	 */
 	const scanProject = async (pluginContext?: {
 		addWatchFile: (id: string) => void
@@ -234,12 +301,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 	/**
 	 * Пересобирает каталоги локальных источников иконок.
-	 *
-	 * @remarks
-	 * Каталоги строятся для всех источников с типом `local` из `options.sources`.
-	 * Каждый каталог связывает имя иконки с путём к её SVG-файлу.
-	 *
-	 * @returns Промис, завершающийся после построения всех каталогов
 	 */
 	const rebuildLocalCatalogs = async (): Promise<void> => {
 		localCatalogs = await Promise.all(localSourceOptions.map((source) => buildLocalCatalog(root, source)))
@@ -267,10 +328,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 	/**
 	 * Инвалидирует виртуальный модуль реестра и запрашивает полную перезагрузку страницы.
-	 *
-	 * @remarks
-	 * Вызывается после изменения набора иконок в dev-режиме. Если dev-сервер ещё
-	 * не запущен, вызов игнорируется.
 	 */
 	const invalidateVirtualModule = (): void => {
 		if (!server) {
@@ -291,10 +348,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 	/**
 	 * Выводит предупреждение о динамических именах `<Icon name={...}>`.
 	 *
-	 * @remarks
-	 * Одинаковое состояние dynamic usages повторно не логируется.
-	 * Если все динамические использования исчезли, сигнатура сбрасывается.
-	 *
 	 * @param warn - Функция вывода предупреждения
 	 */
 	const warnAboutDynamicIcons = (warn: (message: string) => void): void => {
@@ -314,10 +367,13 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 		lastDynamicWarningSignature = details
 
-		warn(
-			`[@dubium/icons] Найдены динамические <Icon name={...}>:\n${details}\n` +
-				"Для MF/EventBus это допустимо, если loader регистрируется remote через runtime registry.",
-		)
+		const runtimeHint = runtimeRegistryOwner
+			? "runtimeRegistry публикует только имена, найденные scanner-ом или добавленные в options.include. " +
+				'Для EventBus используйте поле iconName: "..." или добавьте своё поле в options.propertyNames.'
+			: "Если возможные значения известны текущему приложению, добавьте их в options.include. " +
+				"Для MF Remote можно включить options.runtimeRegistry."
+
+		warn(`[@dubium/icons] Найдены динамические <Icon name={...}>:\n${details}\n${runtimeHint}`)
 	}
 
 	return {
@@ -326,10 +382,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 		/**
 		 * Запоминает корень проекта из итоговой конфигурации Vite.
-		 *
-		 * @remarks
-		 * Корень используется для резолва относительных путей в `options.scan`
-		 * и `options.sources`.
 		 */
 		configResolved(config) {
 			root = config.root
@@ -337,10 +389,6 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 
 		/**
 		 * При старте сборки пересобирает локальные каталоги и сканирует проект.
-		 *
-		 * @remarks
-		 * После сканирования выводит предупреждение о динамических именах иконок,
-		 * если такие использования найдены.
 		 */
 		async buildStart() {
 			await rebuildLocalCatalogs()
@@ -350,12 +398,42 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		},
 
 		/**
-		 * Настраивает отслеживание изменений структуры файлов в dev-режиме.
+		 * Автоматически подключает virtual registry в исполняемый код Remote.
 		 *
 		 * @remarks
-		 * Добавляет директории локальных источников в watcher и подписывается на
-		 * создание и удаление файлов и директорий. Подписка снимается при закрытии
-		 * HTTP-сервера.
+		 * Side-effect import добавляется в исходные модули приложения,
+		 * если включён `runtimeRegistry` и итоговый registry не пуст.
+		 *
+		 * Virtual module является singleton-модулем в module graph,
+		 * поэтому даже при нескольких импортирующих файлах runtime-регистрация
+		 * выполняется один раз на конкретную загрузку module graph.
+		 *
+		 * Такой подход не зависит от конкретной реализации Module Federation
+		 * и не требует отдельного bootstrap-вызова `registerIcons()`.
+		 */
+		transform(code, id) {
+			if (!runtimeRegistryOwner || getAllIcons().length === 0) {
+				return null
+			}
+
+			const file = getModuleFilePath(id)
+
+			if (!isScanPath(file) || !DEFAULT_EXTENSIONS.has(extname(file).toLowerCase())) {
+				return null
+			}
+
+			if (code.includes(VIRTUAL_MODULE_ID)) {
+				return null
+			}
+
+			return {
+				code: `import ${JSON.stringify(VIRTUAL_MODULE_ID)};\n${code}`,
+				map: null,
+			}
+		},
+
+		/**
+		 * Настраивает отслеживание изменений структуры файлов в dev-режиме.
 		 */
 		configureServer(devServer) {
 			server = devServer
@@ -364,21 +442,10 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 				devServer.watcher.add(resolve(root, source.path))
 			}
 
-			/**
-			 * Обрабатывает добавление или удаление файла/директории в dev-режиме.
-			 *
-			 * @remarks
-			 * Если изменился локальный источник, пересобираются каталоги. Если изменился
-			 * набор иконок или число динамических имён, виртуальный модуль инвалидируется
-			 * и повторно выводится предупреждение о динамических именах.
-			 */
 			const onStructureChange = async (file: string): Promise<void> => {
 				const localSourceChanged = isLocalSourcePath(file)
 				const scanChanged = isScanPath(file) ? await scanFile(file) : false
 
-				/**
-				 * Инвалидирует виртуальный модуль и выводит предупреждение о динамических именах.
-				 */
 				const notifyChanges = (): void => {
 					invalidateVirtualModule()
 
@@ -423,32 +490,38 @@ export const dubiumIcons = (options: DubiumIconsPluginOptions = {}): Plugin => {
 		},
 
 		/**
-		 * Генерирует исходный код виртуального модуля реестра иконок.
+		 * Генерирует исходный код virtual registry.
 		 *
 		 * @remarks
-		 * Модуль содержит ленивые загрузчики для всех найденных иконок, каталоги
-		 * локальных источников и описание package-источника. Пути импортов проверяются
-		 * через резолвер Vite.
+		 * Compile-time registry содержит scanner-result + `include`.
+		 *
+		 * Если включён `runtimeRegistry`, весь compile-time registry
+		 * (scanner-result + `include`) дополнительно публикуется
+		 * в общий runtime registry под указанным owner.
 		 */
 		load(id) {
 			if (id !== RESOLVED_VIRTUAL_MODULE_ID) {
 				return null
 			}
 
-			return createVirtualModuleSource(getAllIcons(), localCatalogs, packageSource, (importPath) =>
-				this.resolve(importPath),
+			const allIcons = getAllIcons()
+
+			return createVirtualModuleSource(
+				allIcons,
+				localCatalogs,
+				packageSource,
+				(importPath) => this.resolve(importPath),
+				runtimeRegistryOwner
+					? {
+							owner: runtimeRegistryOwner,
+							iconNames: allIcons,
+						}
+					: undefined,
 			)
 		},
 
 		/**
 		 * Обрабатывает изменение файла в dev-режиме.
-		 *
-		 * @remarks
-		 * Пересканирует изменённый файл только если он входит в `options.scan`.
-		 * Для чтения использует `context.read()`, чтобы избежать race condition при сохранении.
-		 * Если набор иконок изменился, инвалидирует виртуальный модуль и возвращает пустой
-		 * массив, отключая точечное HMR-обновление
-		 * затронутых модулей в пользу полной перезагрузки.
 		 */
 		async handleHotUpdate(context) {
 			if (!isScanPath(context.file)) {

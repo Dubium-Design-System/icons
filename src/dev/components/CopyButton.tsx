@@ -1,10 +1,4 @@
-import {
-	memo,
-	type ReactNode,
-	useEffect,
-	useRef,
-	useState,
-} from "react"
+import { memo, type ReactNode, useEffect, useRef, useState } from "react"
 
 import styles from "../app.module.css"
 
@@ -19,18 +13,12 @@ type TCopyButtonProps = {
  *
  * @param value Текст для копирования.
  */
-const copyText = async (
-	value: string,
-): Promise<void> => {
+const copyText = async (value: string): Promise<void> => {
 	if (!navigator.clipboard?.writeText) {
-		throw new Error(
-			"Clipboard API недоступен",
-		)
+		throw new Error("Clipboard API недоступен")
 	}
 
-	await navigator.clipboard.writeText(
-		value,
-	)
+	await navigator.clipboard.writeText(value)
 }
 
 /**
@@ -39,95 +27,42 @@ const copyText = async (
  * После успешного копирования временно
  * показывает состояние `Скопировано`.
  */
-export const CopyButton = memo(
-	({
-		children,
-		value,
-	}: TCopyButtonProps) => {
-		const [
-			copied,
-			setCopied,
-		] = useState(false)
+export const CopyButton = memo(({ children, value }: TCopyButtonProps) => {
+	const [copied, setCopied] = useState(false)
 
-		const timeoutRef =
-			useRef<number | null>(
-				null,
-			)
+	const timeoutRef = useRef<number | null>(null)
 
-		useEffect(() => {
-			return () => {
-				if (
-					timeoutRef.current !==
-					null
-				) {
-					window.clearTimeout(
-						timeoutRef.current,
-					)
-				}
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current !== null) {
+				window.clearTimeout(timeoutRef.current)
 			}
-		}, [])
+		}
+	}, [])
 
-		const handleClick =
-			async () => {
-				try {
-					await copyText(
-						value,
-					)
+	const handleClick = async () => {
+		try {
+			await copyText(value)
 
-					setCopied(true)
+			setCopied(true)
 
-					if (
-						timeoutRef.current !==
-						null
-					) {
-						window.clearTimeout(
-							timeoutRef.current,
-						)
-					}
-
-					timeoutRef.current =
-						window.setTimeout(
-							() => {
-								setCopied(
-									false,
-								)
-							},
-							1000,
-						)
-				} catch (error) {
-					console.error(
-						"Не удалось скопировать:",
-						error,
-					)
-				}
+			if (timeoutRef.current !== null) {
+				window.clearTimeout(timeoutRef.current)
 			}
 
-		return (
-			<button
-				type="button"
-				className={
-					styles.copyButton
-				}
-				onClick={
-					handleClick
-				}
-				title={`Скопировать: ${value}`}
-			>
-				{copied ? (
-					<span
-						className={
-							styles.copyButtonContent
-						}
-					>
-						Скопировано
-					</span>
-				) : (
-					children
-				)}
-			</button>
-		)
-	},
-)
+			timeoutRef.current = window.setTimeout(() => {
+				setCopied(false)
+			}, 1000)
+		} catch (error) {
+			console.error("Не удалось скопировать:", error)
+		}
+	}
 
-CopyButton.displayName =
-	"CopyButton"
+	return (
+		<button type="button" className={styles.copyButton} onClick={handleClick} title={`Скопировать: ${value}`}>
+			{copied ? <span className={styles.copyButtonContent}>Скопировано</span> : children}
+		</button>
+	)
+})
+
+CopyButton.displayName = "CopyButton"
