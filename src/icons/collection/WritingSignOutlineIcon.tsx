@@ -1,0 +1,26 @@
+import type { IIconComponentProps } from "./types.js"
+
+/**
+ * SVG-иконка с поддержкой динамического цвета.
+ */
+export const WritingSignOutlineIcon = ({
+	color = "var(--icon-color, currentColor)",
+	secondaryColor: _secondaryColor,
+	...svgProps
+}: IIconComponentProps) => (
+	<svg
+		{...svgProps}
+		fill="none"
+		stroke={color}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="2"
+		viewBox="0 0 24 24"
+		width="100%"
+		height="100%"
+	>
+		<path d="M3 19q5-3 5-6c0-3-1-3-2-3s-2.032 1.085-2 3c.034 2.048 1.658 2.877 2.5 4C8 19 9 19.5 10 18q1-1.5 1.5-2.5 1.5 3.5 4 3.5H18m2-2V5c0-1.121-.879-2-2-2s-2 .879-2 2v12l2 2zM16 7h4" />
+	</svg>
+)
+
+export default WritingSignOutlineIcon

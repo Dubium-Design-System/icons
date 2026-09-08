@@ -1,0 +1,17 @@
+import type { IIconComponentProps } from "./types.js"
+
+/**
+ * SVG-иконка с поддержкой динамического цвета.
+ */
+export const FileDollarFilledIcon = ({
+	color = "var(--icon-color, currentColor)",
+	secondaryColor: _secondaryColor,
+	...svgProps
+}: IIconComponentProps) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
+		<path d="m12 2 .117.007a1 1 0 0 1 .876.876L13 3v4l.005.15a2 2 0 0 0 1.838 1.844L15 9h4l.117.007a1 1 0 0 1 .876.876L20 10v9a3 3 0 0 1-2.824 2.995L17 22H7a3 3 0 0 1-2.995-2.824L4 19V5a3 3 0 0 1 2.824-2.995L7 2zm0 8a1 1 0 0 0-1 1v.05a2.5 2.5 0 0 0 .5 4.95h1a.5.5 0 1 1 0 1H10a1 1 0 0 0 0 2h1a1 1 0 0 0 2 0v-.05a2.5 2.5 0 0 0-.5-4.95h-1a.5.5 0 1 1 0-1H14a1 1 0 0 0 0-2h-1a1 1 0 0 0-1-1" />
+		<path d="M19 7h-4l-.001-4.001z" />
+	</svg>
+)
+
+export default FileDollarFilledIcon

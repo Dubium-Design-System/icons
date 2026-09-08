@@ -1,0 +1,16 @@
+import type { IIconComponentProps } from "./types.js"
+
+/**
+ * SVG-иконка с поддержкой динамического цвета.
+ */
+export const Cone2FilledIcon = ({
+	color = "var(--icon-color, currentColor)",
+	secondaryColor: _secondaryColor,
+	...svgProps
+}: IIconComponentProps) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
+		<path d="M12 1c5.52 0 10 1.494 10 4.002v.5a1 1 0 0 1-.121.477L13.74 20.985a2 2 0 0 1-3.489-.016l-8.13-14.99A1 1 0 0 1 2 5.504v-.5C2 2.495 6.48 1 12 1" />
+	</svg>
+)
+
+export default Cone2FilledIcon

@@ -3,61 +3,99 @@ import { readdir, readFile, rm, writeFile } from "node:fs/promises"
 import { basename, join, relative, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import {
+	ICON_COMPONENT_FILE_REGEX,
+	JS_IDENTIFIER_REGEX,
+	OPTIMIZED_ICON_FILE_REGEX,
+	STARTS_WITH_DIGIT_REGEX,
+	SVG_ATTRIBUTE_REGEX,
+	SVG_FILE_REGEX,
+	SVG_PAINT_COLOR_REGEX,
+	SVG_XMLNS_ATTRIBUTE_REGEX,
+	TSX_EXTENSION_REGEX,
+} from "./sync-icons.regex.mjs"
+
 /**
  * Корневая директория проекта.
  */
 const rootDir = fileURLToPath(new URL("../", import.meta.url))
 
 /**
- * Каталог с оптимизированными SVG-файлами — источник для генерации компонентов.
+ * Каталог optimized SVG.
+ *
+ * Содержит три source-категории:
+ *
+ * - colors;
+ * - filled;
+ * - outline.
  */
 const optimizedDir = fileURLToPath(new URL("../icons/optimized/", import.meta.url))
 
 /**
- * Каталог, в который записываются сгенерированные компоненты иконок.
+ * Каталог generated React-компонентов.
  */
 const collectionDir = fileURLToPath(new URL("../src/icons/collection/", import.meta.url))
 
 /**
- * Путь к индексному файлу коллекции иконок.
+ * Generated index коллекции.
  */
 const collectionIndex = fileURLToPath(new URL("../src/icons/collection/index.ts", import.meta.url))
 
 /**
- * Значение первичного цвета по умолчанию для пропа `color`.
+ * Поддерживаемые source-категории.
+ */
+const SOURCE_KINDS = new Set(["colors", "filled", "outline"])
+
+/**
+ * Source-категория, для которой исходные
+ * SVG-цвета сохраняются без изменений.
+ */
+const COLORS_SOURCE_KIND = "colors"
+
+/**
+ * Основной цвет динамической иконки по умолчанию.
  */
 const PRIMARY_COLOR_DEFAULT = "var(--icon-color, currentColor)"
 
 /**
- * Значение вторичного цвета по умолчанию для пропа `secondaryColor`.
+ * Вторичный цвет динамической иконки по умолчанию.
  */
 const SECONDARY_COLOR_DEFAULT = "var(--icon-secondary-color, currentColor)"
 
 /**
- * Соответствие SVG-атрибутов их JSX-представлениям.
+ * Соответствие SVG-атрибутов React/JSX props.
  */
 const SVG_ATTRIBUTE_TO_JSX = new Map([
 	["clip-path", "clipPath"],
+	["clip-rule", "clipRule"],
 	["fill-opacity", "fillOpacity"],
+	["fill-rule", "fillRule"],
 	["gradientUnits", "gradientUnits"],
 	["stop-color", "stopColor"],
+	["stop-opacity", "stopOpacity"],
+	["stroke-dasharray", "strokeDasharray"],
+	["stroke-dashoffset", "strokeDashoffset"],
 	["stroke-linecap", "strokeLinecap"],
 	["stroke-linejoin", "strokeLinejoin"],
+	["stroke-miterlimit", "strokeMiterlimit"],
 	["stroke-opacity", "strokeOpacity"],
 	["stroke-width", "strokeWidth"],
 ])
 
 /**
- * Запускает внешнюю команду в корневой директории проекта и ожидает её завершения.
- *
- * @param command - Запускаемая команда
- * @param args - Аргументы команды
- * @returns Промис, который разрешается при успешном завершении команды
- * @throws
- * Отклоняет промис, если команду не удалось запустить или она завершилась с ненулевым кодом.
+ * Paint-атрибуты SVG.
  */
-const run = (command, args) =>
-	new Promise((resolve, reject) => {
+const COLOR_ATTRIBUTES = new Set(["fill", "stroke", "stop-color"])
+
+/**
+ * Запускает внешнюю команду из корня проекта.
+ *
+ * @param {string} command Команда.
+ * @param {string[]} args Аргументы.
+ * @returns {Promise<void>} Результат выполнения.
+ */
+const run = (command, args) => {
+	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
 			cwd: rootDir,
 			stdio: "inherit",
@@ -75,13 +113,14 @@ const run = (command, args) =>
 			reject(new Error(`Команда "${command} ${args.join(" ")}" завершилась с кодом ${code}`))
 		})
 	})
+}
 
 /**
- * Рекурсивно обходит директорию и возвращает пути файлов, удовлетворяющих предикату.
+ * Рекурсивно собирает файлы.
  *
- * @param directory - Абсолютный путь к обходимой директории
- * @param predicate - Предикат, определяющий, какие имена файлов включать в результат
- * @returns Список абсолютных путей отобранных файлов
+ * @param {string} directory Директория.
+ * @param {(name: string) => boolean} predicate Фильтр.
+ * @returns {Promise<string[]>} Пути файлов.
  */
 const walk = async (directory, predicate) => {
 	const entries = await readdir(directory, {
@@ -95,6 +134,7 @@ const walk = async (directory, predicate) => {
 
 		if (entry.isDirectory()) {
 			files.push(...(await walk(path, predicate)))
+
 			continue
 		}
 
@@ -107,48 +147,166 @@ const walk = async (directory, predicate) => {
 }
 
 /**
- * Заменяет разделители пути на POSIX-разделители (`/`).
+ * Приводит путь к POSIX-формату.
  *
- * @param value - Путь с разделителями текущей операционной системы
- * @returns Путь с разделителями `/`
+ * @param {string} value Путь.
+ * @returns {string} POSIX-путь.
  */
 const toPosix = (value) => {
 	return value.split(sep).join("/")
 }
 
 /**
- * Проверяет, является ли значение SVG-атрибута заменяемым цветом.
+ * Определяет source-категорию optimized SVG.
  *
- * @remarks
- * Значения `none`, `transparent`, `currentColor` и ссылки на градиенты (`url(...)`)
- * не считаются заменяемыми.
+ * @example
+ * ```text
+ * icons/optimized/colors/LogoIcon.svg
+ * -> colors
  *
- * @param value - Значение атрибута `fill`, `stroke` или `stop-color`
- * @returns `true`, если значение можно заменить на цветовой проп
+ * icons/optimized/filled/UserFilledIcon.svg
+ * -> filled
+ *
+ * icons/optimized/outline/UserOutlineIcon.svg
+ * -> outline
+ * ```
+ *
+ * @param {string} file Абсолютный путь SVG.
+ * @returns {string} Source-категория.
+ *
+ * @throws
+ * Если SVG находится вне поддерживаемой категории.
+ */
+const getSourceKind = (file) => {
+	const optimizedRelativePath = relative(optimizedDir, file)
+
+	const [sourceKind] = optimizedRelativePath.split(sep)
+
+	if (!SOURCE_KINDS.has(sourceKind)) {
+		throw new Error(`Неизвестная source-категория для "${file}": ${sourceKind}`)
+	}
+
+	return sourceKind
+}
+
+/**
+ * Создаёт валидный JavaScript identifier
+ * React-компонента.
+ *
+ * Публичное имя не изменяется.
+ *
+ * @example
+ * ```text
+ * UserFilled
+ * -> UserFilledIcon
+ *
+ * 123Filled
+ * -> _123FilledIcon
+ * ```
+ *
+ * @param {string} name Публичное имя.
+ * @returns {string} Имя React-компонента.
+ */
+const createComponentName = (name) => {
+	return STARTS_WITH_DIGIT_REGEX.test(name) ? `_${name}Icon` : `${name}Icon`
+}
+
+/**
+ * Получает metadata из имени optimized SVG.
+ *
+ * `Filled` и `Outline` уже являются
+ * частью публичного имени.
+ *
+ * @example
+ * ```text
+ * UserIcon.svg
+ * -> name: User
+ *
+ * UserFilledIcon.svg
+ * -> name: UserFilled
+ *
+ * UserOutlineIcon.svg
+ * -> name: UserOutline
+ *
+ * 123FilledIcon.svg
+ * -> name: 123Filled
+ * -> componentName: _123FilledIcon
+ * ```
+ *
+ * @param {string} fileName Имя optimized SVG.
+ * @returns {{
+ *   name: string,
+ *   componentName: string
+ * }} Metadata.
+ */
+const getIconMetadata = (fileName) => {
+	const match = OPTIMIZED_ICON_FILE_REGEX.exec(fileName)
+
+	if (!match) {
+		throw new Error(`Некорректное имя optimized SVG: ${fileName}. Ожидается <Name>Icon.svg`)
+	}
+
+	const name = match[1]
+
+	if (!name) {
+		throw new Error(`Некорректное имя иконки: ${fileName}`)
+	}
+
+	const componentName = createComponentName(name)
+
+	if (!JS_IDENTIFIER_REGEX.test(componentName)) {
+		throw new Error(`Некорректное имя React-компонента для ${fileName}: ${componentName}`)
+	}
+
+	return {
+		name,
+		componentName,
+	}
+}
+
+/**
+ * Проверяет, является ли paint-значение
+ * заменяемым цветом.
+ *
+ * `currentColor` считается заменяемым.
+ *
+ * Это важно для `filled` и `outline`,
+ * где большинство SVG используют именно `currentColor`.
+ *
+ * Не заменяются:
+ *
+ * - `none`;
+ * - `transparent`;
+ * - `url(...)`.
+ *
+ * @param {string} value Paint-значение.
+ * @returns {boolean} Можно ли заменить значение.
  */
 const isPaintColor = (value) => {
 	const normalized = value.trim().toLowerCase()
 
-	return (
-		normalized !== "none" &&
-		normalized !== "transparent" &&
-		normalized !== "currentcolor" &&
-		!normalized.startsWith("url(")
-	)
+	const isValidPaintColor = normalized !== "none" && normalized !== "transparent" && !normalized.startsWith("url(")
+
+	return isValidPaintColor
 }
 
 /**
- * Собирает уникальные заменяемые цвета из исходного кода SVG.
+ * Собирает уникальные заменяемые цвета.
  *
- * @param svg - Содержимое SVG-файла
- * @returns Массив уникальных цветов, которые можно заменить на пропы
+ * `currentColor` также входит в список.
+ *
+ * Первый цвет становится `color`,
+ * второй — `secondaryColor`.
+ *
+ * Для `colors` эта функция не вызывается.
+ *
+ * @param {string} svg SVG-разметка.
+ * @returns {string[]} Цвета.
  */
 const getColors = (svg) => {
 	const colors = []
 
-	const colorPattern = /\b(?:fill|stroke|stop-color)="([^"]+)"/gu
-
-	for (const match of svg.matchAll(colorPattern)) {
+	for (const match of svg.matchAll(SVG_PAINT_COLOR_REGEX)) {
 		const value = match[1]
 
 		if (isPaintColor(value) && !colors.includes(value)) {
@@ -160,27 +318,26 @@ const getColors = (svg) => {
 }
 
 /**
- * Преобразует строку в корректное строковое JS-представление с экранированием.
+ * Формирует JavaScript string literal.
  *
- * @param value - Исходная строка
- * @returns Строка, пригодная для вставки в исходный код
+ * @param {string} value Значение.
+ * @returns {string} String literal.
  */
 const escapeJsString = (value) => {
 	return JSON.stringify(value)
 }
 
 /**
- * Преобразует SVG-разметку в JSX.
+ * Преобразует SVG в JSX.
  *
- * @remarks
- * Первые два найденных цвета заменяются на пропы `color` и `secondaryColor`,
- * а SVG-атрибуты приводятся к JSX-нотации.
+ * Если `colors` пустой, исходные paint-значения
+ * сохраняются без изменений.
  *
- * @param svg - Содержимое SVG-файла
- * @param colors - Цвета, которые должны быть заменены на пропы
- * @returns JSX-разметка в виде строки
+ * @param {string} svg SVG-разметка.
+ * @param {string[]} colors Цвета для замены.
+ * @returns {string} JSX.
  */
-const svgToJsx = (svg, colors) => {
+const svgToJsx = (svg, colors = []) => {
 	const colorProps = new Map()
 
 	if (colors[0]) {
@@ -191,32 +348,77 @@ const svgToJsx = (svg, colors) => {
 		colorProps.set(colors[1], "secondaryColor")
 	}
 
-	return svg
-		.replace(/\s+xmlns="[^"]*"/gu, "")
-		.replace(/\b([A-Za-z_:][\w:.-]*)="([^"]*)"/gu, (_full, rawName, value) => {
-			const name = SVG_ATTRIBUTE_TO_JSX.get(rawName) ?? rawName
+	return svg.replace(SVG_XMLNS_ATTRIBUTE_REGEX, "").replace(SVG_ATTRIBUTE_REGEX, (_full, rawName, value) => {
+		const name = SVG_ATTRIBUTE_TO_JSX.get(rawName) ?? rawName
 
-			const colorProp = colorProps.get(value)
+		const colorProp = colorProps.get(value)
 
-			if (colorProp && ["fill", "stroke", "stop-color"].includes(rawName)) {
-				return `${name}={${colorProp}}`
-			}
+		if (colorProp && COLOR_ATTRIBUTES.has(rawName)) {
+			return `${name}={${colorProp}}`
+		}
 
-			return `${name}=${escapeJsString(value)}`
-		})
+		return `${name}=${escapeJsString(value)}`
+	})
 }
 
 /**
- * Формирует исходный код компонента иконки на основе SVG.
+ * Добавляет стандартные SVG props
+ * в корневой `<svg>`.
  *
- * @param fileName - Имя SVG-файла
- * @param svg - Содержимое SVG-файла
- * @returns Исходный код компонента иконки
- * @throws
- * Если в SVG не найдено ни одного заменяемого цвета или таких цветов больше двух.
+ * Служебные `color` и `secondaryColor`
+ * предварительно исключаются из `svgProps`.
+ *
+ * @param {string} jsx JSX.
+ * @returns {string} JSX с svgProps.
  */
-const createComponentSource = (fileName, svg) => {
-	const componentName = basename(fileName, ".svg")
+const addSvgProps = (jsx) => {
+	return jsx.replace("<svg ", "<svg {...svgProps} ")
+}
+
+/**
+ * Создаёт React-компонент SVG.
+ *
+ * Для `colors`:
+ *
+ * - исходные цвета сохраняются;
+ * - количество цветов не анализируется;
+ * - `color` и `secondaryColor` не попадают в DOM.
+ *
+ * Для `filled` / `outline`:
+ *
+ * - первый paint-цвет становится `color`;
+ * - второй становится `secondaryColor`;
+ * - `currentColor` также считается paint-цветом;
+ * - допускается максимум два цвета.
+ *
+ * @param {string} fileName Имя SVG.
+ * @param {string} componentName Имя компонента.
+ * @param {string} svg SVG-разметка.
+ * @param {boolean} preserveColors Сохранять исходные цвета.
+ * @returns {string} Generated TSX.
+ */
+const createComponentSource = (fileName, componentName, svg, preserveColors) => {
+	if (preserveColors) {
+		const jsx = addSvgProps(svgToJsx(svg))
+
+		return `import type { IIconComponentProps } from "./types.js"
+
+/**
+ * Цветная SVG-иконка.
+ *
+ * Исходные цвета сохраняются без изменений.
+ */
+export const ${componentName} = ({
+	color: _color,
+	secondaryColor: _secondaryColor,
+	...svgProps
+}: IIconComponentProps) => (
+	${jsx}
+)
+
+export default ${componentName}
+`
+	}
 
 	const colors = getColors(svg)
 
@@ -228,18 +430,29 @@ const createComponentSource = (fileName, svg) => {
 		throw new Error(`В файле ${fileName} найдено более двух цветов: ${colors.join(", ")}`)
 	}
 
-	const props =
-		colors.length === 1
-			? `{ color = ${escapeJsString(PRIMARY_COLOR_DEFAULT)}, ...props }`
-			: `{ color = ${escapeJsString(PRIMARY_COLOR_DEFAULT)}, secondaryColor = ${escapeJsString(
-					SECONDARY_COLOR_DEFAULT,
-				)}, ...props }`
+	const primaryColorProp = `color = ${escapeJsString(PRIMARY_COLOR_DEFAULT)}`
 
-	const jsx = svgToJsx(svg, colors).replace("<svg ", "<svg {...props} ")
+	const secondaryColorProp =
+		colors.length === 1
+			? "secondaryColor: _secondaryColor"
+			: `secondaryColor = ${escapeJsString(SECONDARY_COLOR_DEFAULT)}`
+
+	const componentProps = `{
+	${primaryColorProp},
+	${secondaryColorProp},
+	...svgProps
+}`
+
+	const jsx = addSvgProps(svgToJsx(svg, colors))
 
 	return `import type { IIconComponentProps } from "./types.js"
 
-export const ${componentName} = (${props}: IIconComponentProps) => (
+/**
+ * SVG-иконка с поддержкой динамического цвета.
+ */
+export const ${componentName} = (
+	${componentProps}: IIconComponentProps
+) => (
 	${jsx}
 )
 
@@ -248,22 +461,34 @@ export default ${componentName}
 }
 
 /**
- * Генерирует содержимое файла `src/icons/collection/index.ts`.
+ * Генерирует `collection/index.ts`.
  *
- * @param icons - Метаданные сгенерированных иконок
- * @returns Исходный код индексного файла коллекции
+ * @param {{
+ *   name: string,
+ *   componentName: string,
+ *   relativePath: string
+ * }[]} icons Metadata иконок.
+ * @returns {string} Generated index.
  */
 const createCollectionIndexSource = (icons) => {
 	const exports = icons
-		.map(({ componentName, relativePath }) => {
-			return `export { default as ${componentName} } from "./${relativePath}"`
-		})
+		.map(({ componentName, relativePath }) => `export { default as ${componentName} } from "./${relativePath}"`)
 		.join("\n")
 
+	const names = icons.length === 0 ? "never" : icons.map(({ name }) => `\t| ${escapeJsString(name)}`).join("\n")
+
 	return `/**
- * СГЕНЕРИРОВАНО АВТОМАТИЧЕСКИ скриптом scripts/sync-icons.mjs.
+ * СГЕНЕРИРОВАНО АВТОМАТИЧЕСКИ.
+ *
  * Не редактировать вручную.
+ * Файл создаётся scripts/sync-icons.mjs.
  */
+
+/**
+ * Все публичные имена встроенных иконок.
+ */
+export type TCollectionIconName =
+${names}
 
 export type { IIconComponentProps } from "./types.js"
 
@@ -272,85 +497,105 @@ ${exports}
 }
 
 /**
- * Удаляет ранее сгенерированные компоненты и создаёт новые из оптимизированных SVG.
+ * Генерирует React-компоненты из optimized SVG.
  *
- * @returns Количество сгенерированных компонентов
+ * `colors`, `filled` и `outline` читаются рекурсивно,
+ * но generated collection остаётся плоской.
+ *
+ * @returns {Promise<number>} Количество компонентов.
  */
 const generateComponents = async () => {
-	const optimizedFiles = (await walk(optimizedDir, (name) => name.toLowerCase().endsWith(".svg"))).sort((a, b) =>
+	const optimizedFiles = (await walk(optimizedDir, (name) => SVG_FILE_REGEX.test(name))).sort((a, b) =>
 		a.localeCompare(b),
 	)
 
-	const previousGeneratedFiles = await walk(collectionDir, (name) => name.endsWith("Icon.tsx"))
+	const previousGeneratedFiles = await walk(collectionDir, (name) => ICON_COMPONENT_FILE_REGEX.test(name))
 
 	await Promise.all(previousGeneratedFiles.map((file) => rm(file)))
 
+	const generatedNames = new Set()
+
 	for (const file of optimizedFiles) {
+		const sourceKind = getSourceKind(file)
+
+		const preserveColors = sourceKind === COLORS_SOURCE_KIND
+
 		const svg = await readFile(file, "utf-8")
 
 		const fileName = basename(file)
 
-		const target = join(collectionDir, fileName.replace(/\.svg$/u, ".tsx"))
+		const { name, componentName } = getIconMetadata(fileName)
 
-		await writeFile(target, createComponentSource(fileName, svg))
+		const generatedFileName = `${name}Icon.tsx`
+
+		const normalizedGeneratedName = generatedFileName.toLowerCase()
+
+		if (generatedNames.has(normalizedGeneratedName)) {
+			throw new Error(`Дублирующееся имя generated-компонента: ${generatedFileName}`)
+		}
+
+		generatedNames.add(normalizedGeneratedName)
+
+		const target = join(collectionDir, generatedFileName)
+
+		await writeFile(target, createComponentSource(fileName, componentName, svg, preserveColors))
 	}
 
 	return optimizedFiles.length
 }
 
 /**
- * Собирает метаданные иконок и генерирует индекс коллекции.
+ * Собирает metadata generated-компонентов
+ * и обновляет `collection/index.ts`.
  *
- * @returns Количество обработанных иконок
- * @throws
- * Если имя файла некорректно или после нормализации встречаются дубликаты.
+ * @returns {Promise<number>} Количество иконок.
  */
 const generateMetadata = async () => {
-	const files = (await walk(collectionDir, (name) => name.endsWith("Icon.tsx"))).sort((a, b) => a.localeCompare(b))
+	const files = (await walk(collectionDir, (name) => ICON_COMPONENT_FILE_REGEX.test(name))).sort((a, b) =>
+		a.localeCompare(b),
+	)
 
 	const seenNames = new Set()
+
 	const seenComponents = new Set()
 
 	const icons = files.map((file) => {
-		const componentName = basename(file, ".tsx")
+		const fileName = basename(file)
 
-		const name = componentName.slice(0, -"Icon".length)
+		const publicFileName = fileName.replace(TSX_EXTENSION_REGEX, ".svg")
 
-		const relativePath = toPosix(relative(collectionDir, file)).replace(/\.tsx$/u, ".js")
+		const { name, componentName } = getIconMetadata(publicFileName)
 
-		if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/u.test(componentName)) {
-			throw new Error(`Некорректное имя файла компонента иконки: ${componentName}.tsx`)
-		}
-
-		if (!name) {
-			throw new Error(`Некорректное имя иконки: ${componentName}.tsx`)
-		}
+		const relativePath = toPosix(relative(collectionDir, file)).replace(TSX_EXTENSION_REGEX, ".js")
 
 		if (seenNames.has(name)) {
-			throw new Error(`Дублирующееся имя иконки после нормализации: ${name}`)
+			throw new Error(`Дублирующееся имя иконки: ${name}`)
 		}
 
 		if (seenComponents.has(componentName)) {
-			throw new Error(`Дублирующийся компонент иконки после нормализации: ${componentName}`)
+			throw new Error(`Дублирующийся React-компонент: ${componentName}`)
 		}
 
 		seenNames.add(name)
+
 		seenComponents.add(componentName)
 
 		return {
-			componentName,
 			name,
+			componentName,
 			relativePath,
 		}
 	})
 
-	const indexSource = createCollectionIndexSource(icons)
-
-	await writeFile(collectionIndex, indexSource)
+	await writeFile(collectionIndex, createCollectionIndexSource(icons))
 
 	return icons.length
 }
 
+/**
+ * Сначала полностью пересобираем `icons/optimized`,
+ * затем generated React-компоненты и metadata.
+ */
 await run("npm", ["run", "build:icons"])
 
 const generatedCount = await generateComponents()
@@ -358,5 +603,5 @@ const generatedCount = await generateComponents()
 const iconCount = await generateMetadata()
 
 console.log(
-	`Синхронизировано иконок: ${iconCount} из ${relative(rootDir, optimizedDir)} (оптимизированных SVG-файлов: ${generatedCount})`,
+	`Синхронизировано иконок: ${iconCount} из ${relative(rootDir, optimizedDir)} (optimized SVG: ${generatedCount})`,
 )

@@ -1,0 +1,16 @@
+import type { IIconComponentProps } from "./types.js"
+
+/**
+ * SVG-иконка с поддержкой динамического цвета.
+ */
+export const EaseOutControlPointFilledIcon = ({
+	color = "var(--icon-color, currentColor)",
+	secondaryColor: _secondaryColor,
+	...svgProps
+}: IIconComponentProps) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
+		<path d="M21 4a1 1 0 0 1 0 2c-1.097 0-2.317.361-3.64 1.068-2.373 1.265-4.958 3.562-7.607 6.59a68 68 0 0 0-4.25 5.42A69 69 0 0 0 4.5 20.534l-.455.69q-.132.204-.196.306a1 1 0 1 1-1.696-1.06l.286-.445.173-.264a73 73 0 0 1 1.26-1.839 70 70 0 0 1 4.376-5.58c2.795-3.195 5.544-5.638 8.171-7.04C18.011 4.454 19.541 4 21 4M5 2c1.306 0 2.418.835 2.83 2H9a1 1 0 1 1 0 2H7.829A3.001 3.001 0 1 1 5 2m9 2a1 1 0 0 1 0 2h-2a1 1 0 0 1 0-2z" />
+	</svg>
+)
+
+export default EaseOutControlPointFilledIcon

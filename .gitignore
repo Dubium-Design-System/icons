@@ -1,26 +1,53 @@
+# Dependencies
+node_modules/
+
+# Production builds
+dist/
+demo/
+
+# Generated optimized SVG
+icons/optimized/
+
+# Vite
+.vite/
+vite.config.*.timestamp-*
+vite.icons.config.*.timestamp-*
+vite.demo.config.*.timestamp-*
+
+# Test / coverage
+coverage/
+.nyc_output/
+
 # Logs
-logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment
+.env
+.env.local
+.env.*.local
 
-# Editor directories and files
+# TypeScript
+*.tsbuildinfo
+
+# Editors
+.idea/
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+!.vscode/settings.json
 
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Archives
 *.zip

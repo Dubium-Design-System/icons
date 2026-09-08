@@ -36,6 +36,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "vite build && tsc -p tsconfig.build.json",
+		"build:demo": "vite build --config vite.demo.config.ts",
 		"build:icons": "vite build --config vite.icons.config.ts",
 		"sync:icons": "node scripts/sync-icons.mjs",
 		"lint": "oxlint",
@@ -54,6 +55,8 @@
 		"oxfmt": "^0.66.0",
 		"oxlint": "^1.81.0",
 		"oxlint-tsgolint": "^7.0.2001",
+		"react-markdown": "^10.1.0",
+		"remark-gfm": "^4.0.1",
 		"rollup-plugin-visualizer": "^7.1.1",
 		"svgo": "^4.1.0",
 		"typescript": "~7.0.2",

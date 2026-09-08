@@ -1,0 +1,26 @@
+import type { IIconComponentProps } from "./types.js"
+
+/**
+ * SVG-иконка с поддержкой динамического цвета.
+ */
+export const FirewallFlameOutlineIcon = ({
+	color = "var(--icon-color, currentColor)",
+	secondaryColor: _secondaryColor,
+	...svgProps
+}: IIconComponentProps) => (
+	<svg
+		{...svgProps}
+		fill="none"
+		stroke={color}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="2"
+		viewBox="0 0 24 24"
+		width="100%"
+		height="100%"
+	>
+		<path d="M15.5 16q2.5 1.5 2.5-1v-2s4 1.06 4 5c0 1.664-.649 3.338-2 4v-.25c0-.957-1.053-1.75-2-1.75s-2 .793-2 1.75V22c-1.351-.662-2-2-2-3.5s1.5-2.5 1.5-2.5M9 3v13M3 9h18M6 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4M3 15h7m5-12v7" />
+	</svg>
+)
+
+export default FirewallFlameOutlineIcon
