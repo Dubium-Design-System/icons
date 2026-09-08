@@ -3,24 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const StarOffOutlineIcon = ({
+export const StarOffOutlineIcon = (
+	{
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps) => (
-	<svg
-		{...svgProps}
-		fill="none"
-		stroke={color}
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		strokeWidth="2"
-		viewBox="0 0 24 24"
-		width="100%"
-		height="100%"
-	>
-		<path d="m3 3 18 18M10.012 6.016l1.981-4.014 3.086 6.253 6.9 1-4.421 4.304m.012 4.01.588 3.426L12 17.75l-6.172 3.245 1.179-6.873-5-4.867 6.327-.917" />
-	</svg>
+}: IIconComponentProps
+) => (
+	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="m3 3 18 18M10.012 6.016l1.981-4.014 3.086 6.253 6.9 1-4.421 4.304m.012 4.01.588 3.426L12 17.75l-6.172 3.245 1.179-6.873-5-4.867 6.327-.917"/></svg>
 )
 
 export default StarOffOutlineIcon

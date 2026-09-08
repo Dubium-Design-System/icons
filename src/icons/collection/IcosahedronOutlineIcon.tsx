@@ -3,26 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const IcosahedronOutlineIcon = ({
+export const IcosahedronOutlineIcon = (
+	{
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps) => (
-	<svg
-		{...svgProps}
-		fill="none"
-		stroke={color}
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		strokeWidth="2"
-		viewBox="0 0 24 24"
-		width="100%"
-		height="100%"
-	>
-		<path d="M21 8.007v7.986a2 2 0 0 1-1.006 1.735l-7 4.007a2 2 0 0 1-1.988 0l-7-4.007A2 2 0 0 1 3 15.993V8.007a2 2 0 0 1 1.006-1.735l7-4.007a2 2 0 0 1 1.988 0l7 4.007A2 2 0 0 1 21 8.007M3.29 6.97 7.5 9m13.21-2.03L16.5 9m4.2 8H3.3" />
-		<path d="M11.76 2.03 7.5 9l-4.3 7.84m9.04-14.81Q15.037 6.47 16.5 9t4.3 7.84" />
-		<path d="M12 17 7.5 9h9zm0 0v5" />
-	</svg>
+}: IIconComponentProps
+) => (
+	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="M21 8.007v7.986a2 2 0 0 1-1.006 1.735l-7 4.007a2 2 0 0 1-1.988 0l-7-4.007A2 2 0 0 1 3 15.993V8.007a2 2 0 0 1 1.006-1.735l7-4.007a2 2 0 0 1 1.988 0l7 4.007A2 2 0 0 1 21 8.007M3.29 6.97 7.5 9m13.21-2.03L16.5 9m4.2 8H3.3"/><path d="M11.76 2.03 7.5 9l-4.3 7.84m9.04-14.81Q15.037 6.47 16.5 9t4.3 7.84"/><path d="M12 17 7.5 9h9zm0 0v5"/></svg>
 )
 
 export default IcosahedronOutlineIcon

@@ -3,14 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const EngineFilledIcon = ({
+export const EngineFilledIcon = (
+	{
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps) => (
-	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
-		<path d="M14 4a1 1 0 0 1 0 2h-1v1h.383a2 2 0 0 1 1.787 1.106L16.62 11H17v-1a1 1 0 0 1 .883-.993L18 9h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2a1 1 0 0 1-1-1v-1h-1v1a2 2 0 0 1-1.85 1.995L14 20h-3.465a2 2 0 0 1-1.664-.89L7.464 17H6a1 1 0 0 1-.993-.883L5 16v-2H4v2a1 1 0 0 1-2 0v-6a1 1 0 1 1 2 0v2h1v-2a1 1 0 0 1 1-1h1.584l1.709-1.707a1 1 0 0 1 .576-.284L10 7h1V6h-1a1 1 0 1 1 0-2z" />
-	</svg>
+}: IIconComponentProps
+) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%"><path d="M14 4a1 1 0 0 1 0 2h-1v1h.383a2 2 0 0 1 1.787 1.106L16.62 11H17v-1a1 1 0 0 1 .883-.993L18 9h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2a1 1 0 0 1-1-1v-1h-1v1a2 2 0 0 1-1.85 1.995L14 20h-3.465a2 2 0 0 1-1.664-.89L7.464 17H6a1 1 0 0 1-.993-.883L5 16v-2H4v2a1 1 0 0 1-2 0v-6a1 1 0 1 1 2 0v2h1v-2a1 1 0 0 1 1-1h1.584l1.709-1.707a1 1 0 0 1 .576-.284L10 7h1V6h-1a1 1 0 1 1 0-2z"/></svg>
 )
 
 export default EngineFilledIcon

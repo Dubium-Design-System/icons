@@ -3,25 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const LanguageHiraganaOutlineIcon = ({
+export const LanguageHiraganaOutlineIcon = (
+	{
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps) => (
-	<svg
-		{...svgProps}
-		fill="none"
-		stroke={color}
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		strokeWidth="2"
-		viewBox="0 0 24 24"
-		width="100%"
-		height="100%"
-	>
-		<path d="M4 5h7M7 4c0 4.846 0 7 .5 8" />
-		<path d="M10 8.5c0 2.286-2 4.5-3.5 4.5S4 11.865 4 11q0-3 3-3c3 0 5 .57 5 2.857q0 2.286-2 3.143m2 6 4-9 4 9m-.9-2h-6.2" />
-	</svg>
+}: IIconComponentProps
+) => (
+	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="M4 5h7M7 4c0 4.846 0 7 .5 8"/><path d="M10 8.5c0 2.286-2 4.5-3.5 4.5S4 11.865 4 11q0-3 3-3c3 0 5 .57 5 2.857q0 2.286-2 3.143m2 6 4-9 4 9m-.9-2h-6.2"/></svg>
 )
 
 export default LanguageHiraganaOutlineIcon

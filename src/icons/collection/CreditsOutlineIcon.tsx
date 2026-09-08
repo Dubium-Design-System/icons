@@ -3,26 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const CreditsOutlineIcon = ({
+export const CreditsOutlineIcon = (
+	{
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps) => (
-	<svg
-		{...svgProps}
-		fill="none"
-		stroke={color}
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		strokeWidth="2"
-		viewBox="0 0 24 24"
-		width="100%"
-		height="100%"
-	>
-		<path d="M3 14a6 2 0 1 0 12 0 6 2 0 1 0-12 0" />
-		<path d="M3 14v5c0 1.105 2.686 2 6 2s6-.895 6-2v-5M9 5a6 2 0 1 0 12 0A6 2 0 1 0 9 5m0 0v3" />
-		<path d="M18.365 11.656C19.955 11.296 21 10.69 21 10V5" />
-	</svg>
+}: IIconComponentProps
+) => (
+	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="M3 14a6 2 0 1 0 12 0 6 2 0 1 0-12 0"/><path d="M3 14v5c0 1.105 2.686 2 6 2s6-.895 6-2v-5M9 5a6 2 0 1 0 12 0A6 2 0 1 0 9 5m0 0v3"/><path d="M18.365 11.656C19.955 11.296 21 10.69 21 10V5"/></svg>
 )
 
 export default CreditsOutlineIcon

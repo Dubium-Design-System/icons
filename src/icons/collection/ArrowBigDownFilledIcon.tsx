@@ -3,14 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const ArrowBigDownFilledIcon = ({
+export const ArrowBigDownFilledIcon = (
+	{
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps) => (
-	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
-		<path d="m10 2-.15.005A2 2 0 0 0 8 4v6.999L5.414 11A2 2 0 0 0 4 14.414L10.586 21a2 2 0 0 0 2.828 0L20 14.414a2 2 0 0 0 .434-2.18l-.068-.145A2 2 0 0 0 18.586 11L16 10.999V4a2 2 0 0 0-2-2z" />
-	</svg>
+}: IIconComponentProps
+) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%"><path d="m10 2-.15.005A2 2 0 0 0 8 4v6.999L5.414 11A2 2 0 0 0 4 14.414L10.586 21a2 2 0 0 0 2.828 0L20 14.414a2 2 0 0 0 .434-2.18l-.068-.145A2 2 0 0 0 18.586 11L16 10.999V4a2 2 0 0 0-2-2z"/></svg>
 )
 
 export default ArrowBigDownFilledIcon

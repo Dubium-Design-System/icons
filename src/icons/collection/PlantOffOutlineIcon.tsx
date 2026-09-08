@@ -3,24 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const PlantOffOutlineIcon = ({
+export const PlantOffOutlineIcon = (
+	{
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps) => (
-	<svg
-		{...svgProps}
-		fill="none"
-		stroke={color}
-		strokeLinecap="round"
-		strokeLinejoin="round"
-		strokeWidth="2"
-		viewBox="0 0 24 24"
-		width="100%"
-		height="100%"
-	>
-		<path d="M17 17v2a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-4h8m-3.1-7.092a6 6 0 0 0-4.79-4.806M3 3v2a6 6 0 0 0 6 6h2m1.531-2.472A6 6 0 0 1 18 5h3v1a6 6 0 0 1-5.037 5.923M12 15v-3M3 3l18 18" />
-	</svg>
+}: IIconComponentProps
+) => (
+	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="M17 17v2a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-4h8m-3.1-7.092a6 6 0 0 0-4.79-4.806M3 3v2a6 6 0 0 0 6 6h2m1.531-2.472A6 6 0 0 1 18 5h3v1a6 6 0 0 1-5.037 5.923M12 15v-3M3 3l18 18"/></svg>
 )
 
 export default PlantOffOutlineIcon
