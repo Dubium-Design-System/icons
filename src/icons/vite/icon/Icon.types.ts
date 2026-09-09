@@ -1,6 +1,6 @@
 import type { ComponentType } from "react"
 
-import type { IIconComponentProps } from "../../collection/types.js"
+import type { IIconComponentProps, IStrokeIconComponentProps } from "../../collection/types.js"
 
 /**
  * Тип пустого реестра иконок.
@@ -13,7 +13,7 @@ export type TEmptyIconRegistry = Readonly<Record<never, never>>
 /**
  * React-компонент иконки.
  */
-export type TIcon = ComponentType<IIconComponentProps>
+export type TIcon = ComponentType<IStrokeIconComponentProps>
 
 /**
  * Модуль динамически загружаемой иконки.
@@ -98,4 +98,4 @@ export type TIconName<TCustomIcons extends TIconRegistry = TEmptyIconRegistry> =
 	| TPackageIconName
 	| Extract<keyof TCustomIcons, string>
 
-export type { IIconComponentProps }
+export type { IIconComponentProps, IStrokeIconComponentProps }

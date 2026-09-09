@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState } from "react"
+import { type CSSProperties, useDeferredValue, useMemo, useState } from "react"
 
 import { DEFAULT_ICON_SIZE, DEFAULT_PRIMARY_COLOR, DEFAULT_SECONDARY_COLOR } from "./constants.js"
 
@@ -35,6 +35,12 @@ const App = () => {
 	const [secondaryColor, setSecondaryColor] = useState(DEFAULT_SECONDARY_COLOR)
 
 	const [iconSize, setIconSize] = useState(DEFAULT_ICON_SIZE)
+
+	const [strokeWidth, setStrokeWidth] = useState(1.5)
+
+	const pageStyle: CSSProperties & { "--icon-stroke-width": string } = {
+		"--icon-stroke-width": `${strokeWidth}px`,
+	}
 
 	/**
 	 * Поиск можно вводить без немедленной
@@ -80,7 +86,7 @@ const App = () => {
 	const resetKey = `${activeTab}:${deferredSearch}`
 
 	return (
-		<main className={styles.page}>
+		<main className={styles.page} style={pageStyle}>
 			<header className={styles.header}>
 				<div className={styles.titleRow}>
 					<div>
@@ -143,6 +149,8 @@ const App = () => {
 					onPrimaryColorChange={setPrimaryColor}
 					secondaryColor={secondaryColor}
 					onSecondaryColorChange={setSecondaryColor}
+					strokeWidth={strokeWidth}
+					onStrokeWidthChange={setStrokeWidth}
 				/>
 			)}
 		</main>

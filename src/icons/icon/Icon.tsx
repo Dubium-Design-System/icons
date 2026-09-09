@@ -23,11 +23,18 @@ export const Icon = ({
 	name: IconComponent,
 	secondaryColor = "var(--icon-secondary-color, currentColor)",
 	size = 24,
+	strokeWidth,
 	style,
 	width,
 }: IconProps) => (
 	<IconContainer ariaLabel={ariaLabel} deg={deg} height={height} size={size} style={style} width={width}>
-		<IconComponent aria-hidden="true" color={color} focusable="false" secondaryColor={secondaryColor} />
+		<IconComponent
+			aria-hidden="true"
+			color={color}
+			focusable="false"
+			secondaryColor={secondaryColor}
+			strokeWidth={strokeWidth}
+		/>
 	</IconContainer>
 )
 

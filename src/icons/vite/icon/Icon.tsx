@@ -2,7 +2,14 @@ import { memo, type MemoExoticComponent, useEffect, useMemo, useState, useSyncEx
 
 import { iconRegistry } from "virtual:@dubium/icons-registry"
 
-import type { TEmptyIconRegistry, TIcon, TIconLoader, TIconName, TIconRegistry } from "./Icon.types.js"
+import type {
+	IStrokeIconComponentProps,
+	TEmptyIconRegistry,
+	TIcon,
+	TIconLoader,
+	TIconName,
+	TIconRegistry,
+} from "./Icon.types.js"
 
 import { useIconContext } from "../provider/index.js"
 import { getRuntimeIconLoader, getRuntimeIconsVersion, subscribeRuntimeIcons } from "../runtime/index.js"
@@ -50,6 +57,12 @@ export interface IconProps<TCustomIcons extends TIconRegistry = TEmptyIconRegist
 	 * Вторичный цвет для двухцветных иконок.
 	 */
 	secondaryColor?: string
+
+	/**
+	 * Толщина обводки для поддерживающих её иконок.
+	 * Без prop используется --icon-stroke-width с fallback 1.5px.
+	 */
+	strokeWidth?: IStrokeIconComponentProps["strokeWidth"]
 
 	/**
 	 * Поворот в градусах.
@@ -100,6 +113,7 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 	height: propHeight,
 	color = "var(--icon-color, currentColor)",
 	secondaryColor = "var(--icon-secondary-color, currentColor)",
+	strokeWidth,
 	deg = 0,
 	ariaLabel,
 }: IconProps<TCustomIcons>) => {
@@ -233,7 +247,13 @@ const IconComponentBase = <TCustomIcons extends TIconRegistry = TEmptyIconRegist
 			role={ariaLabel ? "img" : undefined}
 			style={containerStyle}
 		>
-			<LoadedIconComponent aria-hidden="true" color={color} focusable="false" secondaryColor={secondaryColor} />
+			<LoadedIconComponent
+				aria-hidden="true"
+				color={color}
+				focusable="false"
+				secondaryColor={secondaryColor}
+				strokeWidth={strokeWidth}
+			/>
 		</div>
 	)
 }

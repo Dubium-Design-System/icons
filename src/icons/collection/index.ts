@@ -6196,7 +6196,7 @@ export type TCollectionIconName =
 	| "ZzzOffOutline"
 	| "ZzzOutline"
 
-export type { IIconComponentProps } from "./types.js"
+export type { IIconComponentProps, IStrokeIconComponentProps } from "./types.js"
 
 export { default as AB2OutlineIcon } from "./AB2OutlineIcon.js"
 export { default as AbacusOffOutlineIcon } from "./AbacusOffOutlineIcon.js"

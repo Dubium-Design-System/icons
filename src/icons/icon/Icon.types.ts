@@ -1,10 +1,10 @@
 import type { ComponentType, CSSProperties } from "react"
-import type { IIconComponentProps } from "../collection/types.js"
+import type { IStrokeIconComponentProps } from "../collection/types.js"
 
 /**
  * React-компонент, представляющий иконку.
  */
-export type TIconComponent = ComponentType<IIconComponentProps>
+export type TIconComponent = ComponentType<IStrokeIconComponentProps>
 
 /**
  * Свойства универсального компонента Icon.
@@ -26,6 +26,12 @@ export interface IconProps {
 	 * Вторичный цвет для двухцветных иконок.
 	 */
 	secondaryColor?: string
+
+	/**
+	 * Толщина обводки для поддерживающих её иконок.
+	 * Без prop используется --icon-stroke-width с fallback 1.5px.
+	 */
+	strokeWidth?: IStrokeIconComponentProps["strokeWidth"]
 
 	/**
 	 * Поворот контейнера в градусах.

@@ -14,27 +14,27 @@
 ## Содержание
 
 - [Способы использования иконок](#способы-использования-иконок)
-  - [Содержание](#содержание)
-  - [1. Прямой импорт](#1-прямой-импорт)
-    - [Когда использовать](#когда-использовать)
-  - [2. Сборщик Vite](#2-сборщик-vite)
-    - [Подключение plugin](#подключение-plugin)
-    - [Что делает plugin](#что-делает-plugin)
-    - [Зачем нужен registry](#зачем-нужен-registry)
-    - [Cache](#cache)
-    - [Строковые имена в конфигурациях](#строковые-имена-в-конфигурациях)
-    - [Прямой импорт и Vite API можно использовать вместе](#прямой-импорт-и-vite-api-можно-использовать-вместе)
-    - [mf передача иконки](#mf-передача-иконки)
-      - [CSS для Module Federation](#css-для-module-federation)
-        - [Подключение](#подключение)
-        - [Если `remoteEntry` называется иначе](#если-remoteentry-называется-иначе)
-        - [Зачем нужен плагин](#зачем-нужен-плагин)
-        - [Разработка](#разработка)
-        - [Проверка](#проверка)
-  - [3. Другие сборщики](#3-другие-сборщики)
-  - [4. Что выбрать](#4-что-выбрать)
-    - [Сборщик Vite](#сборщик-vite)
-    - [Другой сборщик](#другой-сборщик)
+    - [Содержание](#содержание)
+    - [1. Прямой импорт](#1-прямой-импорт)
+        - [Когда использовать](#когда-использовать)
+    - [2. Сборщик Vite](#2-сборщик-vite)
+        - [Подключение plugin](#подключение-plugin)
+        - [Что делает plugin](#что-делает-plugin)
+        - [Зачем нужен registry](#зачем-нужен-registry)
+        - [Cache](#cache)
+        - [Строковые имена в конфигурациях](#строковые-имена-в-конфигурациях)
+        - [Прямой импорт и Vite API можно использовать вместе](#прямой-импорт-и-vite-api-можно-использовать-вместе)
+        - [mf передача иконки](#mf-передача-иконки)
+            - [CSS для Module Federation](#css-для-module-federation)
+                - [Подключение](#подключение)
+                - [Если `remoteEntry` называется иначе](#если-remoteentry-называется-иначе)
+                - [Зачем нужен плагин](#зачем-нужен-плагин)
+                - [Разработка](#разработка)
+                - [Проверка](#проверка)
+    - [3. Другие сборщики](#3-другие-сборщики)
+    - [4. Что выбрать](#4-что-выбрать)
+        - [Сборщик Vite](#сборщик-vite)
+        - [Другой сборщик](#другой-сборщик)
 - [Коротко](#коротко)
 
 ---
@@ -271,24 +271,24 @@ import { fixFederationCss } from "@dubium/icons/vite/federation"
 
 ```ts
 export default defineConfig({
-  plugins: [
-    react(),
+	plugins: [
+		react(),
 
-    federation({
-      name: "icons_remote",
-      filename: "remoteEntry.js",
-      exposes: {
-        "./RemotePanel": "./src/RemotePanel.tsx",
-      },
-    }),
+		federation({
+			name: "icons_remote",
+			filename: "remoteEntry.js",
+			exposes: {
+				"./RemotePanel": "./src/RemotePanel.tsx",
+			},
+		}),
 
-    fixFederationCss(),
-  ],
+		fixFederationCss(),
+	],
 
-  build: {
-    target: "esnext",
-    cssCodeSplit: false,
-  },
+	build: {
+		target: "esnext",
+		cssCodeSplit: false,
+	},
 })
 ```
 
@@ -315,7 +315,7 @@ import { fixFederationCss } from "@dubium/icons/vite/federation"
 
 ```ts
 fixFederationCss({
-  remoteEntry: "iconsRemote.js",
+	remoteEntry: "iconsRemote.js",
 })
 ```
 
@@ -323,7 +323,7 @@ fixFederationCss({
 
 ```ts
 fixFederationCss({
-  remoteEntry: "assets/iconsRemote.js",
+	remoteEntry: "assets/iconsRemote.js",
 })
 ```
 

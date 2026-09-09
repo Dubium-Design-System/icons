@@ -1,4 +1,4 @@
-import type { IIconComponentProps } from "./types.js"
+import type { IStrokeIconComponentProps } from "./types.js"
 
 /**
  * SVG-иконка с поддержкой динамического цвета.
@@ -6,15 +6,16 @@ import type { IIconComponentProps } from "./types.js"
 export const SnowflakeOutlineIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
+	strokeWidth = "var(--icon-stroke-width, 1.5px)",
 	...svgProps
-}: IIconComponentProps) => (
+}: IStrokeIconComponentProps) => (
 	<svg
 		{...svgProps}
 		fill="none"
 		stroke={color}
 		strokeLinecap="round"
 		strokeLinejoin="round"
-		strokeWidth="2"
+		strokeWidth={strokeWidth}
 		viewBox="0 0 24 24"
 		width="100%"
 		height="100%"

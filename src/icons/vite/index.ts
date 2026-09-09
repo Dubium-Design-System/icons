@@ -22,6 +22,7 @@ export {
 
 export type {
 	IIconComponentProps,
+	IStrokeIconComponentProps,
 	TEmptyIconRegistry,
 	TIcon,
 	TIconLoader,

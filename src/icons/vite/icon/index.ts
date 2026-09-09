@@ -8,6 +8,7 @@ export { createIcon } from "./Icon.create.js"
 
 export type {
 	IIconComponentProps,
+	IStrokeIconComponentProps,
 	TEmptyIconRegistry,
 	TIcon,
 	TIconLoader,

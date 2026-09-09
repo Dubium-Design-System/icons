@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process"
 import { readdir, readFile, rm, writeFile } from "node:fs/promises"
-import { basename, join, relative, sep } from "node:path"
-import { fileURLToPath } from "node:url"
+import { basename, join, relative, resolve, sep } from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import {
 	ICON_COMPONENT_FILE_REGEX,
@@ -61,6 +61,9 @@ const PRIMARY_COLOR_DEFAULT = "var(--icon-color, currentColor)"
  * Вторичный цвет динамической иконки по умолчанию.
  */
 const SECONDARY_COLOR_DEFAULT = "var(--icon-secondary-color, currentColor)"
+
+/** Толщина обводки: локальный prop, затем CSS-переменная, затем 1.5px. */
+const STROKE_WIDTH_DEFAULT = "var(--icon-stroke-width, 1.5px)"
 
 /**
  * Соответствие SVG-атрибутов React/JSX props.
@@ -351,6 +354,10 @@ const svgToJsx = (svg, colors = []) => {
 	return svg.replace(SVG_XMLNS_ATTRIBUTE_REGEX, "").replace(SVG_ATTRIBUTE_REGEX, (_full, rawName, value) => {
 		const name = SVG_ATTRIBUTE_TO_JSX.get(rawName) ?? rawName
 
+		if (rawName === "stroke-width") {
+			return "strokeWidth={strokeWidth}"
+		}
+
 		const colorProp = colorProps.get(value)
 
 		if (colorProp && COLOR_ATTRIBUTES.has(rawName)) {
@@ -397,11 +404,16 @@ const addSvgProps = (jsx) => {
  * @param {boolean} preserveColors Сохранять исходные цвета.
  * @returns {string} Generated TSX.
  */
-const createComponentSource = (fileName, componentName, svg, preserveColors) => {
+export const createComponentSource = (fileName, componentName, svg, preserveColors) => {
+	// Проверяем атрибут на всех SVG-элементах, независимо от source-категории.
+	const hasStrokeWidth = [...svg.matchAll(SVG_ATTRIBUTE_REGEX)].some((match) => match[1] === "stroke-width")
+	const propsType = hasStrokeWidth ? "IStrokeIconComponentProps" : "IIconComponentProps"
+	const strokeWidthProp = hasStrokeWidth ? `\tstrokeWidth = ${escapeJsString(STROKE_WIDTH_DEFAULT)},\n` : ""
+
 	if (preserveColors) {
 		const jsx = addSvgProps(svgToJsx(svg))
 
-		return `import type { IIconComponentProps } from "./types.js"
+		return `import type { ${propsType} } from "./types.js"
 
 /**
  * Цветная SVG-иконка.
@@ -411,8 +423,8 @@ const createComponentSource = (fileName, componentName, svg, preserveColors) => 
 export const ${componentName} = ({
 	color: _color,
 	secondaryColor: _secondaryColor,
-	...svgProps
-}: IIconComponentProps) => (
+${strokeWidthProp}\t...svgProps
+}: ${propsType}) => (
 	${jsx}
 )
 
@@ -440,18 +452,18 @@ export default ${componentName}
 	const componentProps = `{
 	${primaryColorProp},
 	${secondaryColorProp},
-	...svgProps
+${strokeWidthProp}\t...svgProps
 }`
 
 	const jsx = addSvgProps(svgToJsx(svg, colors))
 
-	return `import type { IIconComponentProps } from "./types.js"
+	return `import type { ${propsType} } from "./types.js"
 
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
 export const ${componentName} = (
-	${componentProps}: IIconComponentProps
+	${componentProps}: ${propsType}
 ) => (
 	${jsx}
 )
@@ -490,7 +502,7 @@ const createCollectionIndexSource = (icons) => {
 export type TCollectionIconName =
 ${names}
 
-export type { IIconComponentProps } from "./types.js"
+export type { IIconComponentProps, IStrokeIconComponentProps } from "./types.js"
 
 ${exports}
 `
@@ -504,7 +516,7 @@ ${exports}
  *
  * @returns {Promise<number>} Количество компонентов.
  */
-const generateComponents = async () => {
+export const generateComponents = async () => {
 	const optimizedFiles = (await walk(optimizedDir, (name) => SVG_FILE_REGEX.test(name))).sort((a, b) =>
 		a.localeCompare(b),
 	)
@@ -550,7 +562,7 @@ const generateComponents = async () => {
  *
  * @returns {Promise<number>} Количество иконок.
  */
-const generateMetadata = async () => {
+export const generateMetadata = async () => {
 	const files = (await walk(collectionDir, (name) => ICON_COMPONENT_FILE_REGEX.test(name))).sort((a, b) =>
 		a.localeCompare(b),
 	)
@@ -596,12 +608,14 @@ const generateMetadata = async () => {
  * Сначала полностью пересобираем `icons/optimized`,
  * затем generated React-компоненты и metadata.
  */
-await run("npm", ["run", "build:icons"])
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+	await run("npm", ["run", "build:icons"])
 
-const generatedCount = await generateComponents()
+	const generatedCount = await generateComponents()
 
-const iconCount = await generateMetadata()
+	const iconCount = await generateMetadata()
 
-console.log(
-	`Синхронизировано иконок: ${iconCount} из ${relative(rootDir, optimizedDir)} (optimized SVG: ${generatedCount})`,
-)
+	console.log(
+		`Синхронизировано иконок: ${iconCount} из ${relative(rootDir, optimizedDir)} (optimized SVG: ${generatedCount})`,
+	)
+}

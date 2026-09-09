@@ -17,7 +17,7 @@ export const GRID_GAP = 12
  * Должна соответствовать `.iconCard`
  * в `app.module.css`.
  */
-export const CARD_HEIGHT = 248
+export const CARD_HEIGHT = 250
 
 /**
  * Полная высота virtual row:

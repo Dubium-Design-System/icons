@@ -22,6 +22,10 @@ type TIconSettingsProps = {
 	secondaryColor: string
 
 	onSecondaryColorChange: (value: string) => void
+
+	strokeWidth: number
+
+	onStrokeWidthChange: (value: number) => void
 }
 
 export const IconSettings = ({
@@ -33,6 +37,8 @@ export const IconSettings = ({
 	onPrimaryColorChange,
 	secondaryColor,
 	onSecondaryColorChange,
+	strokeWidth,
+	onStrokeWidthChange,
 }: TIconSettingsProps) => {
 	const [isOpen, setIsOpen] = useState(true)
 
@@ -93,6 +99,24 @@ export const IconSettings = ({
 
 							<code>{secondaryColor}</code>
 						</div>
+					</label>
+
+					<label className={styles.settingField}>
+						<div className={styles.rangeLabel}>
+							<span>Толщина обводки</span>
+							<strong>{strokeWidth.toFixed(1)}px</strong>
+						</div>
+
+						<input
+							className={styles.range}
+							type="range"
+							min={1.2}
+							max={3.8}
+							step={0.1}
+							value={strokeWidth}
+							aria-valuetext={`${strokeWidth.toFixed(1)}px`}
+							onChange={(event) => onStrokeWidthChange(event.currentTarget.valueAsNumber)}
+						/>
 					</label>
 
 					<label className={styles.settingField}>
