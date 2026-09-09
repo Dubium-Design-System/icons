@@ -3,14 +3,25 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const DualScreenOutlineIcon = (
-	{
+export const DualScreenOutlineIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="m5 4 8 3v15l-8-3z"/><path d="M13 19h6V4H5"/></svg>
+}: IIconComponentProps) => (
+	<svg
+		{...svgProps}
+		fill="none"
+		stroke={color}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="2"
+		viewBox="0 0 24 24"
+		width="100%"
+		height="100%"
+	>
+		<path d="m5 4 8 3v15l-8-3z" />
+		<path d="M13 19h6V4H5" />
+	</svg>
 )
 
 export default DualScreenOutlineIcon

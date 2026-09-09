@@ -3,14 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const BatteryVertical4FilledIcon = (
-	{
+export const BatteryVertical4FilledIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%"><path d="M13.5 3a1.5 1.5 0 0 1 1.395.948l.018.052H15a3 3 0 0 1 2.995 2.824L18 7v11a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h.086l.019-.052a1.5 1.5 0 0 1 1.25-.941L10.5 3zm.5 13h-4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2m0-3h-4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2m0-3h-4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2m0-3h-4a1 1 0 1 0 0 2h4a1 1 0 0 0 0-2"/></svg>
+}: IIconComponentProps) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
+		<path d="M13.5 3a1.5 1.5 0 0 1 1.395.948l.018.052H15a3 3 0 0 1 2.995 2.824L18 7v11a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h.086l.019-.052a1.5 1.5 0 0 1 1.25-.941L10.5 3zm.5 13h-4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2m0-3h-4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2m0-3h-4a1 1 0 0 0 0 2h4a1 1 0 0 0 0-2m0-3h-4a1 1 0 1 0 0 2h4a1 1 0 0 0 0-2" />
+	</svg>
 )
 
 export default BatteryVertical4FilledIcon

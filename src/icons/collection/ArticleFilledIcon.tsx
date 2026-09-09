@@ -3,14 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const ArticleFilledIcon = (
-	{
+export const ArticleFilledIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%"><path d="M19 3a3 3 0 0 1 2.995 2.824L22 6v12a3 3 0 0 1-2.824 2.995L19 21H5a3 3 0 0 1-2.995-2.824L2 18V6a3 3 0 0 1 2.824-2.995L5 3zm-2 12H7l-.117.007a1 1 0 0 0 0 1.986L7 17h10l.117-.007a1 1 0 0 0 0-1.986zm0-4H7l-.117.007a1 1 0 0 0 0 1.986L7 13h10l.117-.007a1 1 0 0 0 0-1.986zm0-4H7l-.117.007a1 1 0 0 0 0 1.986L7 9h10l.117-.007a1 1 0 0 0 0-1.986z"/></svg>
+}: IIconComponentProps) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
+		<path d="M19 3a3 3 0 0 1 2.995 2.824L22 6v12a3 3 0 0 1-2.824 2.995L19 21H5a3 3 0 0 1-2.995-2.824L2 18V6a3 3 0 0 1 2.824-2.995L5 3zm-2 12H7l-.117.007a1 1 0 0 0 0 1.986L7 17h10l.117-.007a1 1 0 0 0 0-1.986zm0-4H7l-.117.007a1 1 0 0 0 0 1.986L7 13h10l.117-.007a1 1 0 0 0 0-1.986zm0-4H7l-.117.007a1 1 0 0 0 0 1.986L7 9h10l.117-.007a1 1 0 0 0 0-1.986z" />
+	</svg>
 )
 
 export default ArticleFilledIcon

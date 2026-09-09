@@ -3,14 +3,25 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const FileSettingsOutlineIcon = (
-	{
+export const FileSettingsOutlineIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="M10 14a2 2 0 1 0 4 0 2 2 0 1 0-4 0m2-3.5V12m0 4v1.5m3.031-5.25-1.299.75m-3.464 2-1.3.75m6.032.053-1.285-.773m-3.43-2.06L9 12.197M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2"/></svg>
+}: IIconComponentProps) => (
+	<svg
+		{...svgProps}
+		fill="none"
+		stroke={color}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="2"
+		viewBox="0 0 24 24"
+		width="100%"
+		height="100%"
+	>
+		<path d="M10 14a2 2 0 1 0 4 0 2 2 0 1 0-4 0m2-3.5V12m0 4v1.5m3.031-5.25-1.299.75m-3.464 2-1.3.75m6.032.053-1.285-.773m-3.43-2.06L9 12.197M14 3v4a1 1 0 0 0 1 1h4" />
+		<path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2" />
+	</svg>
 )
 
 export default FileSettingsOutlineIcon

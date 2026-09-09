@@ -3,14 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const ChevronRightFilledIcon = (
-	{
+export const ChevronRightFilledIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%"><path d="m9.707 5.293 6 6a1 1 0 0 1 0 1.414l-6 6a1 1 0 1 1-1.414-1.414L13.586 12 8.293 6.707a1 1 0 0 1 1.414-1.414"/></svg>
+}: IIconComponentProps) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
+		<path d="m9.707 5.293 6 6a1 1 0 0 1 0 1.414l-6 6a1 1 0 1 1-1.414-1.414L13.586 12 8.293 6.707a1 1 0 0 1 1.414-1.414" />
+	</svg>
 )
 
 export default ChevronRightFilledIcon

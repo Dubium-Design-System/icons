@@ -3,14 +3,24 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const SpadeOutlineIcon = (
-	{
+export const SpadeOutlineIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="m12 3 4.919 4.5q.915.88 1.703 1.771a5.53 5.53 0 0 1 .264 6.979c-1.18 1.56-3.338 1.92-4.886.75v1l1 3H9l1-3v-1c-1.54 1.07-3.735.772-4.886-.75a5.53 5.53 0 0 1 .264-6.979A31 31 0 0 1 7.081 7.5 1542 1542 0 0 1 12 3"/></svg>
+}: IIconComponentProps) => (
+	<svg
+		{...svgProps}
+		fill="none"
+		stroke={color}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="2"
+		viewBox="0 0 24 24"
+		width="100%"
+		height="100%"
+	>
+		<path d="m12 3 4.919 4.5q.915.88 1.703 1.771a5.53 5.53 0 0 1 .264 6.979c-1.18 1.56-3.338 1.92-4.886.75v1l1 3H9l1-3v-1c-1.54 1.07-3.735.772-4.886-.75a5.53 5.53 0 0 1 .264-6.979A31 31 0 0 1 7.081 7.5 1542 1542 0 0 1 12 3" />
+	</svg>
 )
 
 export default SpadeOutlineIcon

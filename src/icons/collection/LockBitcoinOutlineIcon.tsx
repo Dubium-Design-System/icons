@@ -3,14 +3,25 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const LockBitcoinOutlineIcon = (
-	{
+export const LockBitcoinOutlineIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="M17 21v-6m2 0v-1.5m0 9V21m-2-3h3m-1 0h.5a1.5 1.5 0 0 1 0 3H16m3-3h.5a1.5 1.5 0 0 0 0-3H16m-3 6H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h10"/><path d="M11 16a1 1 0 1 0 2 0 1 1 0 0 0-2 0m-3-5V7a4 4 0 1 1 8 0v4"/></svg>
+}: IIconComponentProps) => (
+	<svg
+		{...svgProps}
+		fill="none"
+		stroke={color}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="2"
+		viewBox="0 0 24 24"
+		width="100%"
+		height="100%"
+	>
+		<path d="M17 21v-6m2 0v-1.5m0 9V21m-2-3h3m-1 0h.5a1.5 1.5 0 0 1 0 3H16m3-3h.5a1.5 1.5 0 0 0 0-3H16m-3 6H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h10" />
+		<path d="M11 16a1 1 0 1 0 2 0 1 1 0 0 0-2 0m-3-5V7a4 4 0 1 1 8 0v4" />
+	</svg>
 )
 
 export default LockBitcoinOutlineIcon

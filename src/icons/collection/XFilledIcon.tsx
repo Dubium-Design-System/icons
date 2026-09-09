@@ -3,14 +3,14 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const XFilledIcon = (
-	{
+export const XFilledIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%"><path d="M6.707 5.293 12 10.585l5.293-5.292a1 1 0 0 1 1.414 1.414L13.415 12l5.292 5.293a1 1 0 0 1-1.414 1.414L12 13.415l-5.293 5.292a1 1 0 1 1-1.414-1.414L10.585 12 5.293 6.707a1 1 0 0 1 1.414-1.414"/></svg>
+}: IIconComponentProps) => (
+	<svg {...svgProps} fill={color} viewBox="0 0 24 24" width="100%" height="100%">
+		<path d="M6.707 5.293 12 10.585l5.293-5.292a1 1 0 0 1 1.414 1.414L13.415 12l5.292 5.293a1 1 0 0 1-1.414 1.414L12 13.415l-5.293 5.292a1 1 0 1 1-1.414-1.414L10.585 12 5.293 6.707a1 1 0 0 1 1.414-1.414" />
+	</svg>
 )
 
 export default XFilledIcon

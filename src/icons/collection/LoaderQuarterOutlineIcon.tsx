@@ -3,14 +3,24 @@ import type { IIconComponentProps } from "./types.js"
 /**
  * SVG-иконка с поддержкой динамического цвета.
  */
-export const LoaderQuarterOutlineIcon = (
-	{
+export const LoaderQuarterOutlineIcon = ({
 	color = "var(--icon-color, currentColor)",
 	secondaryColor: _secondaryColor,
 	...svgProps
-}: IIconComponentProps
-) => (
-	<svg {...svgProps} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="100%" height="100%"><path d="M12 6V3m-6 9H3m4.75-4.25L5.6 5.6"/></svg>
+}: IIconComponentProps) => (
+	<svg
+		{...svgProps}
+		fill="none"
+		stroke={color}
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		strokeWidth="2"
+		viewBox="0 0 24 24"
+		width="100%"
+		height="100%"
+	>
+		<path d="M12 6V3m-6 9H3m4.75-4.25L5.6 5.6" />
+	</svg>
 )
 
 export default LoaderQuarterOutlineIcon
