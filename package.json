@@ -32,6 +32,10 @@
 			"types": "./dist/vite/runtime/index.d.ts",
 			"import": "./dist/vite/runtime/index.js"
 		},
+		"./vite/federation": {
+			"types": "./dist/vite/federation/index.d.ts",
+			"import": "./dist/vite/federation/index.js"
+		},
 		"./vite/plugin": {
 			"types": "./dist/vite/plugin/index.d.ts",
 			"import": "./dist/vite/plugin/index.js"

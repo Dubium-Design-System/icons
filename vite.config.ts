@@ -64,6 +64,8 @@ export default defineConfig({
 				"vite/plugin/index": resolve(ICONS_ROOT, "vite/plugin/index.ts"),
 
 				"vite/runtime/index": resolve(ICONS_ROOT, "vite/runtime/index.ts"),
+
+				"vite/federation/index": resolve(ICONS_ROOT, "vite/federation/index.ts"),
 			},
 
 			formats: ["es"],
