@@ -8,6 +8,5 @@
  */
 
 export { dubiumIcons } from "./plugin.js"
-export { dubiumIcons as default } from "./plugin.js"
 
 export type { DubiumIconsPluginOptions, TDubiumIconIncludeName, TDubiumIconSource } from "./plugin.types.js"

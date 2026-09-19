@@ -71,7 +71,7 @@ export type TPackageIconName = TRemoveIconSuffix<TCollectionExportName>
  *
  * Включает:
  *
- * 1. все встроенные иконки @sg/icons;
+ * 1. все встроенные иконки @dubium/icons;
  * 2. ключи кастомного registry, если он передан.
  *
  * @example

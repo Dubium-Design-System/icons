@@ -1,467 +1,310 @@
-# Способы использования иконок
+# @dubium/icons
 
-В `@dubium/icons` есть два способа использовать иконки:
-
-1. напрямую импортировать React-компонент;
-2. использовать строковое имя через Vite plugin.
-
-Если сборщик проекта — **Vite**, доступны оба способа.
-
-Если используется **другой сборщик**, используйте прямой импорт.
-
----
+SVG-иконки для React. Поддерживает прямой импорт компонентов и загрузку по строковому имени через Vite.
 
 ## Содержание
 
-- [Способы использования иконок](#способы-использования-иконок)
-    - [Содержание](#содержание)
-    - [1. Прямой импорт](#1-прямой-импорт)
-        - [Когда использовать](#когда-использовать)
-    - [2. Сборщик Vite](#2-сборщик-vite)
-        - [Подключение plugin](#подключение-plugin)
-        - [Что делает plugin](#что-делает-plugin)
-        - [Зачем нужен registry](#зачем-нужен-registry)
-        - [Cache](#cache)
-        - [Строковые имена в конфигурациях](#строковые-имена-в-конфигурациях)
-        - [Прямой импорт и Vite API можно использовать вместе](#прямой-импорт-и-vite-api-можно-использовать-вместе)
-        - [mf передача иконки](#mf-передача-иконки)
-            - [CSS для Module Federation](#css-для-module-federation)
-                - [Подключение](#подключение)
-                - [Если `remoteEntry` называется иначе](#если-remoteentry-называется-иначе)
-                - [Зачем нужен плагин](#зачем-нужен-плагин)
-                - [Разработка](#разработка)
-                - [Проверка](#проверка)
-    - [3. Другие сборщики](#3-другие-сборщики)
-    - [4. Что выбрать](#4-что-выбрать)
-        - [Сборщик Vite](#сборщик-vite)
-        - [Другой сборщик](#другой-сборщик)
-- [Коротко](#коротко)
+- [@dubium/icons](#dubiumicons)
+  - [Содержание](#содержание)
+  - [1. Компонент Icon](#1-компонент-icon)
+    - [Props](#props)
+  - [2. Использование](#2-использование)
+    - [Прямой импорт, без Vite-плагина](#прямой-импорт-без-vite-плагина)
+    - [Через Vite](#через-vite)
+  - [3. IconProvider](#3-iconprovider)
+    - [Пример компонента иконки](#пример-компонента-иконки)
+    - [Пример иконки с двумя цветами и обводкой](#пример-иконки-с-двумя-цветами-и-обводкой)
+  - [4. Плагины для vite.config](#4-плагины-для-viteconfig)
+    - [dubiumIcons](#dubiumicons-1)
+      - [Параметры](#параметры)
+      - [Настройка sources](#настройка-sources)
+      - [Пример со всеми параметрами](#пример-со-всеми-параметрами)
+    - [fixFederationCss](#fixfederationcss)
 
----
+## 1. Компонент Icon
 
-## 1. Прямой импорт
+В библиотеке есть два компонента `Icon`. Они отличаются способом передачи иконки:
 
-Если нужная иконка известна прямо в коде, импортируйте её как обычный React-компонент:
+| Импорт | React-компонент | Описание |
+| --------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `import { Icon } from "@dubium/icons/icon"` | `<Icon name={UserOutlineIcon} />` | Отображает переданный React-компонент. Не требует Vite или плагинов |
+| `import { Icon } from "@dubium/icons/vite"` | `<Icon name="UserOutline" />` | Принимает строковое имя из справочника всех иконок библиотеки. По имени находит загрузчик в реестре и загружает иконку при отображении. Требует `dubiumIcons()` |
 
-```tsx
-import { UserIcon } from "@dubium/icons/icons"
-import { Icon } from "@dubium/icons/icon"
+### Props
 
-export const Profile = () => <Icon name={UserIcon} />
-```
+| props            | Описание                                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| `name`           | React-компонент для `@dubium/icons/icon` или строковое имя из справочника для `@dubium/icons/vite`         |
+| `size`           | Ширина и высота иконки. По умолчанию `24`                                                                  |
+| `width`          | Ширина иконки. Переопределяет ширину, заданную через `size`                                                |
+| `height`         | Высота иконки. Переопределяет высоту, заданную через `size`                                                |
+| `color`          | Основной цвет иконки. По умолчанию `var(--icon-color, currentColor)`                                       |
+| `secondaryColor` | Второй цвет для иконок, которые его поддерживают. По умолчанию `var(--icon-secondary-color, currentColor)` |
+| `strokeWidth`    | Толщина обводки для иконок, которые её поддерживают `var(--icon-stroke-width, 1.5px)`                      |
+| `deg`            | Угол поворота в градусах                                                                                   |
+| `ariaLabel`      | Доступное название для скринридера. Без него иконка считается декоративной                                 |
 
-Сборщик видит прямой импорт `UserIcon` и добавляет в build нужную иконку.
+## 2. Использование
 
-Вся коллекция иконок для этого не подключается.
+### Прямой импорт, без Vite-плагина
 
-Этот вариант не зависит от Vite и подходит для других сборщиков.
-
-### Когда использовать
-
-Используйте прямой импорт, если иконка заранее известна в коде:
-
-```tsx
-import { SearchIcon } from "@dubium/icons/icons"
-import { Icon } from "@dubium/icons/icon"
-
-return <Icon name={SearchIcon} />
-```
-
-Для такого использования `dubiumIcons()` не нужен.
-
----
-
-## 2. Сборщик Vite
-
-Если проект собирается через Vite, кроме прямого импорта можно использовать иконки по строковому имени:
+Импортируйте иконку и передайте её компонент в `name`:
 
 ```tsx
-<Icon name="User" />
+import { Icon } from "@dubium/icons/icon";
+import { UserOutlineIcon } from "@dubium/icons/icons";
+
+export const ProfileIcon = () => (
+ <Icon
+  name={UserOutlineIcon}
+  size={24}
+  color="currentColor"
+  ariaLabel="Профиль"
+ />
+);
 ```
 
-Для этого используется `@dubium/icons/vite`.
+### Через Vite
 
-### Подключение plugin
+Подключите `dubiumIcons()` в `vite.config.ts`, как показано ниже. Саму иконку импортировать не нужно:
 
-Добавьте `dubiumIcons()` в `vite.config.ts`:
+```tsx
+import { Icon } from "@dubium/icons/vite";
+
+export const ProfileIcon = () => (
+ <Icon
+  name="UserOutline"
+  size={24}
+  color="currentColor"
+  ariaLabel="Профиль"
+ />
+);
+```
+
+**Строковое имя пишется без суффикса `Icon`:** компоненту `UserOutlineIcon` соответствует `"UserOutline"`. Варианты `Outline` и `Filled` являются частью имени.
+
+## 3. IconProvider
+
+`IconProvider` подключает собственные иконки к строковому API. Передайте ему объект, где ключи являются именами иконок, а значения являются функциями их загрузки.
+
+```tsx
+import { createIcon, IconProvider } from "@dubium/icons/vite";
+
+const appIcons = {
+ CompanyLogo: () => import("./icons/CompanyLogoIcon"),
+ TwoToneCircle: () => import("./icons/TwoToneCircleIcon"),
+};
+
+const AppIcon = createIcon<typeof appIcons>();
+
+export const App = () => (
+ <IconProvider icons={appIcons}>
+  <AppIcon name="CompanyLogo" size={32} />
+
+  <AppIcon
+   name="TwoToneCircle"
+   size={32}
+   color="#2563eb"
+   secondaryColor="#dbeafe"
+   strokeWidth={2}
+  />
+ </IconProvider>
+);
+```
+
+Файлы `CompanyLogoIcon.tsx` и `TwoToneCircleIcon.tsx` должны экспортировать React-компоненты SVG через `default export`.
+
+`IconProvider` делает загрузчики доступными дочерним компонентам. `createIcon()` добавляет пользовательские имена в типизацию `name`, но сам ничего не регистрирует.
+
+При совпадении имени иконка из провайдера имеет приоритет над остальными источниками. Для встроенных иконок провайдер не нужен. **Плагин `dubiumIcons()` нужен и при использовании провайдера.**
+
+### Пример компонента иконки
+
+Создадим `icons/CompanyLogoIcon.tsx` из примера выше. Для простоты иконка изображает точку:
+
+```tsx
+import type { IIconComponentProps } from "@dubium/icons/icons";
+
+export const CompanyLogoIcon = ({
+ color = "var(--icon-color, currentColor)",
+ secondaryColor: _secondaryColor,
+ ...svgProps
+}: IIconComponentProps) => (
+ <svg {...svgProps} width="100%" height="100%" viewBox="0 0 24 24">
+  <circle cx="12" cy="12" r="3" fill={color} />
+ </svg>
+);
+
+export default CompanyLogoIcon;
+```
+
+Размер задаёт обёртка `Icon`, поэтому SVG занимает `100%` её ширины и высоты. Неиспользуемый `secondaryColor` извлекается отдельно, чтобы не попадать в DOM.
+
+`svgProps` не является отдельным prop компонента `Icon`. Это локальный объект, в который собираются оставшиеся свойства, переданные SVG-компоненту, например `aria-hidden` и `focusable`. Через `{...svgProps}` они передаются на `<svg>`.
+
+### Пример иконки с двумя цветами и обводкой
+
+Создадим `icons/TwoToneCircleIcon.tsx`: круг с обводкой цвета `color` и заливкой цвета `secondaryColor`.
+
+Для иконок с настраиваемой толщиной обводки используется тип `IStrokeIconComponentProps`, который добавляет `strokeWidth` к `IIconComponentProps`.
+
+```tsx
+import type { IStrokeIconComponentProps } from "@dubium/icons/icons";
+
+export const TwoToneCircleIcon = ({
+ color = "var(--icon-color, currentColor)",
+ secondaryColor = "var(--icon-secondary-color, currentColor)",
+ strokeWidth = "var(--icon-stroke-width, 1.5px)",
+ ...svgProps
+}: IStrokeIconComponentProps) => (
+ <svg {...svgProps} width="100%" height="100%" viewBox="0 0 24 24">
+  <circle
+   cx="12"
+   cy="12"
+   r="8"
+   fill={secondaryColor}
+   stroke={color}
+   strokeWidth={strokeWidth}
+  />
+ </svg>
+);
+
+export default TwoToneCircleIcon;
+```
+
+Оба цвета и толщина обводки передаются через `AppIcon`, как показано в примере подключения выше. Если `strokeWidth` не задан, используется CSS-переменная `--icon-stroke-width`, а при её отсутствии `1.5px`.
+
+## 4. Плагины для vite.config
+
+### dubiumIcons
+
+Создаёт реестр загрузчиков для строкового `Icon`. По умолчанию сканирует `src` и находит статические имена, например `<Icon name="UserOutline" />`.
+
+Минимальная настройка:
 
 ```ts
-import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
-
-import { dubiumIcons } from "@dubium/icons/vite/plugin"
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import { dubiumIcons } from "@dubium/icons/vite/plugin";
 
 export default defineConfig({
-	plugins: [dubiumIcons(), react()],
-})
+ plugins: [react(), dubiumIcons()],
+});
 ```
 
-После этого можно использовать:
+#### Параметры
 
-```tsx
-<Icon name="User" />
-<Icon name="Search" />
-```
-
-### Что делает plugin
-
-Plugin **не сканирует всю коллекцию иконок**.
-
-Он проходит по исходникам приложения и ищет используемые строковые имена.
-
-Например:
-
-```tsx
-<Icon name="User" />
-<Icon name="Search" />
-```
-
-Plugin найдёт только **статически указанные** имена:
-
-```text
-User
-Search
-```
-
-Такое значение можно определить во время сборки:
-
-```tsx
-<Icon name="User" /> // найдёт
-```
-
-А конкретное значение здесь заранее неизвестно:
-
-```tsx
-<Icon name={iconName} /> // заранее определить не сможет
-```
-
-Для найденных статических имён plugin создаёт registry.
-
-Упрощённо:
+Все параметры необязательны. Тип настроек `DubiumIconsPluginOptions` доступен через публичный импорт:
 
 ```ts
-export const iconRegistry = {
-	Search: () => import("@dubium/icons/icons/Search"),
-	User: () => import("@dubium/icons/icons/User"),
-}
+import type { DubiumIconsPluginOptions } from "@dubium/icons/vite/plugin";
 ```
 
-Если другие иконки из библиотеки в проекте не используются, в registry они не попадут.
+| Параметр          | Описание                                                                                                                                                                                                                                                                                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scan`            | Каталоги для рекурсивного поиска использований иконок относительно корня Vite-проекта. Принимает пути к каталогам, не glob-шаблоны. `[]` отключает сканирование. По умолчанию `["src"]`                                                                                                                                     |
+| `componentNames`  | Дополнительные имена JSX-компонентов, у которых нужно искать свойство `name`, например `["AppIcon"]` для `<AppIcon name="UserOutline" />`. Нужен для собственных обёрток и реэкспортов. Обычный `Icon` из `@dubium/icons/vite`, включая импорт с алиасом, определяется автоматически. По умолчанию `[]`                         |
+| `include`         | Имена иконок, которые нужно добавить в реестр независимо от результатов сканирования. Используется, когда `name` задаётся динамически, а возможные значения известны заранее. Добавляет загрузчики, но не загружает все иконки сразу. По умолчанию `[]`                                                                     |
+| `propertyNames`   | Имена полей объектов, строковые значения которых нужно считать именами иконок. Например, `["iconName"]` позволяет найти `"SearchOutline"` в `{ iconName: "SearchOutline" }`. По умолчанию `[]`; при включённом `runtimeRegistry` поле `iconName` добавляется автоматически                                                  |
+| `runtimeRegistry` | Непустой уникальный идентификатор приложения или микрофронтенда, например `"profile-mf"`. Включает публикацию найденных и добавленных через `include` загрузчиков в общий runtime-реестр. После выполнения кода приложения они доступны другим приложениям в том же JavaScript-окружении. По умолчанию публикация отключена |
+| `sources`         | Источники компонентов иконок: локальные каталоги и npm-пакет. Определяют, откуда импортировать найденное имя. По умолчанию `[{ type: "package", importPattern: "@dubium/icons/icons/{name}" }]`                                                                                                                                 |
 
-### Зачем нужен registry
+Сканируются файлы `.js`, `.jsx`, `.mjs`, `.cjs`, `.ts` и `.tsx`.
 
-При прямом импорте сборщик уже знает, какая иконка нужна:
+**Плагин не вычисляет значения переменных и выражений.** Для `<Icon name={iconName} />` добавьте возможные имена в `include` или укажите поля конфигурации со статическими именами через `propertyNames`.
 
-```ts
-import { UserIcon } from "@dubium/icons/icons"
-```
+#### Настройка sources
 
-Но здесь:
+Каждый элемент `sources` описывает один источник:
 
-```tsx
-<Icon name="User" />
-```
+| Параметр        | Описание                                                                                                                                                                                                               |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`          | Тип источника: `"local"` для каталога компонентов или `"package"` для импорта из npm-пакета. Обязателен                                                                                                                |
+| `path`          | Путь к каталогу компонентов относительно корня Vite-проекта. Обязателен для `"local"`                                                                                                                                  |
+| `suffix`        | Суффикс имени файла, по которому распознаются локальные иконки. При формировании строкового имени суффикс удаляется: `CompanyLogoIcon.tsx` становится `CompanyLogo`. Используется для `"local"`. По умолчанию `"Icon"` |
+| `importPattern` | Шаблон пути импорта с обязательным `{name}`, который заменяется именем иконки. Например, `@dubium/icons/icons/{name}`. Обязателен для `"package"`                                                                          |
 
-`"User"` — обычная строка.
+Можно указать несколько локальных источников: они проверяются в порядке перечисления, используется первое совпадение. Источник `"package"` допускается только один и используется, если имя не найдено локально.
 
-Plugin связывает строковое имя с нужным модулем:
+**Переданный `sources` заменяет стандартный список.** Чтобы сохранить доступ к встроенной коллекции вместе с локальными иконками, добавьте источник `@dubium/icons` явно. `sources: []` убирает все источники, поэтому найденные сканером или добавленные через `include` имена не смогут разрешиться.
 
-```text
-User → @dubium/icons/icons/User
-```
+Локальные файлы должны экспортировать React-компонент SVG через `default export`, как в примере из раздела `IconProvider`.
 
-Для каждой найденной иконки создаётся отдельный dynamic `import()`:
+#### Пример со всеми параметрами
 
-```ts
-return () => import("@dubium/icons/icons/User")
-```
-
-Поэтому строковый API не требует подключать всю коллекцию иконок.
-
-### Cache
-
-После загрузки иконка сохраняется в памяти приложения.
-
-Если `User` уже был загружен, при следующем использовании:
-
-```tsx
-<Icon name="User" />
-```
-
-готовый React-компонент берётся из cache.
-
-Важно не путать:
-
-- **registry** хранит информацию о том, как загрузить иконку;
-- **cache** хранит уже загруженный React-компонент.
-
-### Строковые имена в конфигурациях
-
-Строковый API удобен, когда имя иконки находится в конфигурации.
-
-Чтобы plugin искал такие значения, укажите название свойства в `propertyNames`:
+Указывайте только настройки, необходимые приложению:
 
 ```ts
 dubiumIcons({
-	propertyNames: ["iconName"],
-})
+ // Где искать использования иконок.
+ scan: ["src"],
+
+ // Какие собственные JSX-обёртки сканировать.
+ componentNames: ["AppIcon"],
+
+ // Какие динамические имена добавить явно.
+ include: ["UserOutline", "UserFilled"],
+
+ // В каких полях объектов искать строковые имена.
+ propertyNames: ["iconName"],
+
+ // Под каким идентификатором публиковать загрузчики
+ // для других приложений в общем runtime-реестре.
+ runtimeRegistry: "profile-mf",
+
+ // Откуда импортировать найденные иконки.
+ sources: [
+  {
+   type: "local",
+   path: "src/icons",
+   suffix: "Icon",
+  },
+  {
+   type: "package",
+   importPattern: "@dubium/icons/icons/{name}",
+  },
+ ],
+});
 ```
 
-После этого:
+Сканер не читает содержимое `IconProvider`. Если пользовательское имя попало в сканирование через `componentNames`, `propertyNames` или было добавлено в `include`, оно должно разрешаться через `sources`.
+
+### fixFederationCss
+
+Исправляет CSS-плейсхолдеры в собранном `remoteEntry.js` у `@originjs/vite-plugin-federation`.
+
+Нужен только в Remote-приложении, где возникает эта проблема. Подключается **после `federation()`** и требует **`build.cssCodeSplit: false`**.
 
 ```ts
-const menu = [
-	{
-		title: "Profile",
-		iconName: "User",
-	},
-]
-```
+import react from "@vitejs/plugin-react";
+import federation from "@originjs/vite-plugin-federation";
+import { defineConfig } from "vite";
+import { dubiumIcons } from "@dubium/icons/vite/plugin";
+import { fixFederationCss } from "@dubium/icons/vite/federation";
 
-статическое значение `User` будет найдено и добавлено в registry.
-
-### Прямой импорт и Vite API можно использовать вместе
-
-Если сборщик — Vite, не обязательно выбирать только один способ.
-
-Часть иконок можно импортировать напрямую:
-
-```tsx
-import { CompanyLogoIcon } from "@dubium/icons/icons"
-import { Icon as BaseIcon } from "@dubium/icons/icon"
-
-return <BaseIcon name={CompanyLogoIcon} />
-```
-
-а часть использовать по строковому имени:
-
-```tsx
-<Icon name="User" />
-```
-
-Оба способа добавляют только необходимые приложению иконки, но делают это по-разному.
-
-|                      | Прямой импорт              | Vite API                   |
-| -------------------- | -------------------------- | -------------------------- |
-| Использование        | `<Icon name={UserIcon} />` | `<Icon name="User" />`     |
-| Как находится иконка | обычный import             | plugin сканирует исходники |
-| Registry             | не нужен                   | создаётся автоматически    |
-| Lazy loading         | нет                        | dynamic `import()`         |
-| Нужен Vite           | нет                        | да                         |
-
-### mf передача иконки
-
-#### CSS для Module Federation
-
-Если `@dubium/icons` используется внутри Remote-приложения с `@originjs/vite-plugin-federation`, иногда CSS Remote может загружаться некорректно.
-
-Для этого в пакете есть отдельный Vite-плагин `fixFederationCss`.
-
-Он **не включается автоматически** вместе с `dubiumIcons()` и подключается отдельно.
-
-##### Подключение
-
-Добавьте импорт в `vite.config.ts`:
-
-```ts
-import { fixFederationCss } from "@dubium/icons/vite/federation"
-```
-
-Затем добавьте плагин **после `federation(...)`**:
-
-```ts
 export default defineConfig({
-	plugins: [
-		react(),
+ plugins: [
+  react(),
+  dubiumIcons(),
 
-		federation({
-			name: "icons_remote",
-			filename: "remoteEntry.js",
-			exposes: {
-				"./RemotePanel": "./src/RemotePanel.tsx",
-			},
-		}),
+  federation({
+   name: "profile_remote",
+   filename: "remoteEntry.js",
+   exposes: {
+    "./Profile": "./src/Profile.tsx",
+   },
+  }),
 
-		fixFederationCss(),
-	],
+  fixFederationCss(),
+ ],
 
-	build: {
-		target: "esnext",
-		cssCodeSplit: false,
-	},
-})
+ build: {
+  target: "esnext",
+  cssCodeSplit: false,
+ },
+});
 ```
 
-Важно:
+В существующем Remote сохраните свои настройки `federation()`.
 
-- `fixFederationCss()` должен идти после `federation(...)`;
-- для работы плагина нужен `build.cssCodeSplit: false`;
-- существующие настройки `shared`, React и другие плагины менять не нужно.
-
-Если у вас уже используется `dubiumIcons()`, оставьте его как есть:
-
-```ts
-import { dubiumIcons } from "@dubium/icons/vite/plugin"
-import { fixFederationCss } from "@dubium/icons/vite/federation"
-```
-
-Оба плагина работают независимо друг от друга.
-
-##### Если `remoteEntry` называется иначе
-
-По умолчанию плагин ищет файл `remoteEntry.js`.
-
-Если в `federation` указано другое имя, передайте его в настройках:
-
-```ts
-fixFederationCss({
-	remoteEntry: "iconsRemote.js",
-})
-```
-
-Для файла внутри директории можно указать относительный путь:
-
-```ts
-fixFederationCss({
-	remoteEntry: "assets/iconsRemote.js",
-})
-```
-
-##### Зачем нужен плагин
-
-В некоторых сборках OriginJS в `remoteEntry.js` вместо списка CSS-файлов остаётся служебный CSS-плейсхолдер.
-
-Из-за этого Remote может упасть при загрузке стилей с ошибкой:
-
-```text
-forEach is not a function
-```
-
-`fixFederationCss` заменяет такой плейсхолдер на корректный список CSS-файлов во время сборки.
-
-Дополнительный post-build скрипт не нужен.
-
-##### Разработка
-
-Remote можно собирать обычным способом:
-
-```bash
-npx vite build
-npx vite preview --host 0.0.0.0
-```
-
-Для watch-режима:
-
-```bash
-npx vite build --watch
-```
-
-После изменения CSS дождитесь пересборки Remote и обновите страницу Host.
-
-Плагин исправляет только загрузку CSS. Он не решает проблемы с `shared`, React, EventBus или JS-экспортами Module Federation.
-
-##### Проверка
-
-После подключения:
-
-1. Пересоберите Remote.
-2. Откройте сгенерированный `remoteEntry.js`.
-3. Убедитесь, что CSS-плейсхолдеров больше нет.
-4. Откройте Host и проверьте, что стили Remote загрузились.
-
-> Плагин опциональный. Если проблема с CSS в вашем Remote не возникает, подключать его не нужно.
-
----
-
-## 3. Другие сборщики
-
-Если проект использует не Vite, а другой сборщик, используйте прямой импорт:
-
-```tsx
-import { UserIcon } from "@dubium/icons/icons"
-import { Icon } from "@dubium/icons/icon"
-
-return <Icon name={UserIcon} />
-```
-
-Для этого варианта не нужны:
-
-- `dubiumIcons()`;
-- Vite plugin;
-- compile-time registry.
-
-Иконка импортируется как обычный React-компонент, а сборщик добавляет её в build стандартным способом.
-
-Строковый API:
-
-```tsx
-<Icon name="User" />
-```
-
-требует Vite plugin, поэтому с другими сборщиками этот вариант не используется.
-
----
-
-## 4. Что выбрать
-
-### Сборщик Vite
-
-Доступны оба варианта.
-
-Если иконка известна прямо в коде:
-
-```tsx
-import { UserIcon } from "@dubium/icons/icons"
-import { Icon } from "@dubium/icons/icon"
-
-return <Icon name={UserIcon} />
-```
-
-используйте прямой импорт.
-
-Если нужно работать со строковым именем:
-
-```tsx
-<Icon name="User" />
-```
-
-используйте Vite API.
-
-### Другой сборщик
-
-Используйте прямой импорт:
-
-```tsx
-import { UserIcon } from "@dubium/icons/icons"
-import { Icon } from "@dubium/icons/icon"
-
-return <Icon name={UserIcon} />
-```
-
----
-
-# Коротко
-
-| Сборщик         | Прямой импорт | Строковый API |
-| --------------- | ------------- | ------------- |
-| Vite            | ✅            | ✅            |
-| Другие сборщики | ✅            | ❌            |
-
-Для Vite:
-
-```tsx
-// Прямой импорт
-<Icon name={UserIcon} />
-
-// Или строковый API
-<Icon name="User" />
-```
-
-Для других сборщиков:
-
-```tsx
-import { UserIcon } from "@dubium/icons/icons"
-import { Icon } from "@dubium/icons/icon"
-
-return <Icon name={UserIcon} />
-```
+Для другого имени entry-файла передайте `fixFederationCss({ remoteEntry: "profileRemote.js" })`.

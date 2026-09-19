@@ -51,3 +51,9 @@ Thumbs.db
 
 # Archives
 *.zip
+/stats.html
+*.tgz
+
+# Generated React icons
+/src/icons/collection/*Icon.tsx
+/src/icons/collection/index.ts

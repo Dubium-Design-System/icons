@@ -8,7 +8,7 @@ import { Icon, type IconProps } from "./Icon.js"
  *
  * При этом autocomplete содержит:
  *
- * - все встроенные иконки @sg/icons;
+ * - все встроенные иконки @dubium/icons;
  * - все ключи TCustomIcons.
  *
  * @example

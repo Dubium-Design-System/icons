@@ -35,7 +35,7 @@ interface ILoadedIcon {
  * Props компонента Icon.
  *
  * По умолчанию `name` содержит autocomplete
- * всех встроенных иконок @sg/icons.
+ * всех встроенных иконок @dubium/icons.
  *
  * Если передан custom registry, его ключи также
  * добавляются в autocomplete.
