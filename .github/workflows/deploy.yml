@@ -1,86 +1,90 @@
 name: Deploy Demo
 
 on:
-  # Деплоим demo при каждом push в main
-  push:
-    branches:
-      - main
+    # Деплоим demo при каждом push в main
+    push:
+        branches:
+            - main
 
-  # Позволяет запустить workflow вручную из GitHub Actions
-  workflow_dispatch:
+    # Позволяет запустить workflow вручную из GitHub Actions
+    workflow_dispatch:
 
 permissions:
-  # Доступ только на чтение содержимого репозитория
-  contents: read
+    # Доступ только на чтение содержимого репозитория
+    contents: read
 
 concurrency:
-  # Не запускаем несколько деплоев Pages одновременно
-  group: github-pages
+    # Не запускаем несколько деплоев Pages одновременно
+    group: github-pages
 
-  # Если появился новый push — отменяем предыдущий незавершённый деплой
-  cancel-in-progress: true
+    # Если появился новый push — отменяем предыдущий незавершённый деплой
+    cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+    build:
+        runs-on: ubuntu-latest
 
-    steps:
-      # Клонируем репозиторий
-      - name: Checkout
-        uses: actions/checkout@v7
+        steps:
+            # Клонируем репозиторий
+            - name: Checkout
+              uses: actions/checkout@v7
 
-      # Устанавливаем Node.js
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
+            # Устанавливаем Node.js
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version: 24
 
-          # Включаем кеш npm
-          cache: npm
+                  # Включаем кеш npm
+                  cache: npm
 
-      # Получаем настройки GitHub Pages,
-      # в том числе правильный base path для проекта
-      - name: Setup Pages
-        id: pages
-        uses: actions/configure-pages@v6
+            # Получаем настройки GitHub Pages,
+            # в том числе правильный base path для проекта
+            - name: Setup Pages
+              id: pages
+              uses: actions/configure-pages@v6
 
-      # Устанавливаем зависимости строго по package-lock.json
-      - name: Install dependencies
-        run: npm ci
+            # Устанавливаем зависимости строго по package-lock.json
+            - name: Install dependencies
+              run: npm ci
 
-      # Собираем demo.
-      # base нужен, чтобы ассеты корректно работали по адресу:
-      # https://<organization>.github.io/icons/
-      - name: Build demo
-        run: npm run build:demo -- --base="${{ steps.pages.outputs.base_path }}/"
+            # Генерируем React-компоненты иконок.
+            # Они находятся в .gitignore и поэтому отсутствуют после checkout.
+            - name: Generate icons
+              run: npm run sync:icons
 
-      # Загружаем собранную папку demo как artifact для GitHub Pages
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: demo
+            # Собираем demo.
+            # base нужен, чтобы ассеты корректно работали на GitHub Pages.
+            - name: Build demo
+              run: npm run build:demo -- --base="${{ steps.pages.outputs.base_path }}/"
 
-  deploy:
-    # Деплой начинается только после успешной сборки
-    needs: build
+            # Загружаем собранную папку demo как artifact для GitHub Pages
+            - name: Upload artifact
+              uses: actions/upload-pages-artifact@v5
+              with:
+                  path: demo
 
-    runs-on: ubuntu-latest
+    deploy:
+        # Деплой начинается только после успешной сборки
+        needs: build
 
-    permissions:
-      # Разрешение на публикацию GitHub Pages
-      pages: write
+        runs-on: ubuntu-latest
 
-      # Нужно для авторизации GitHub Pages через OIDC
-      id-token: write
+        permissions:
+            # Разрешение на публикацию GitHub Pages
+            pages: write
 
-    environment:
-      name: github-pages
+            # Нужно для авторизации GitHub Pages через OIDC
+            id-token: write
 
-      # GitHub покажет URL опубликованного сайта
-      url: ${{ steps.deployment.outputs.page_url }}
+        environment:
+            name: github-pages
 
-    steps:
-      # Публикуем загруженный artifact в GitHub Pages
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v5
+            # GitHub покажет URL опубликованного сайта
+            url: ${{ steps.deployment.outputs.page_url }}
+
+        steps:
+            # Публикуем загруженный artifact в GitHub Pages
+            - name: Deploy
+              id: deployment
+              uses: actions/deploy-pages@v5
